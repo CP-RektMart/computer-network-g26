@@ -1,1 +1,33 @@
 # Chat Server
+
+### Install dependency
+````
+npm install
+````
+
+### Docker 
+````
+docker-compose up
+````
+
+### ENV
+**PORT**: The port on which the server will run.<br />
+**LOG_REQUESTS**: Set this to **FULL** for detailed logs, **SMALL** for minimal logs, or leave it **empty** for no logging.<br />
+**DATABASE_URL**: The URL to your database.<br />
+
+### Migrate Database
+If you make any changes to the database schema, you'll need to run the migration scripts.
+````
+npm run migrate
+````
+If you want to deploy the latest database schema changes to the production environment, use:
+````
+npm run generate
+npm run migrate:deploy
+````
+
+### Run
+````
+npm run dev
+````
+Default it will also run generate and migrate:deploy for lately
