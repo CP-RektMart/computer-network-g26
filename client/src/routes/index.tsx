@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
 import logo from '../logo.svg'
 
 export const Route = createFileRoute('/')({
@@ -7,15 +6,6 @@ export const Route = createFileRoute('/')({
 })
 
 function App() {
-  const { data } = useQuery({
-    queryKey: ['people'],
-    queryFn: () =>
-      fetch('https://swapi.dev/api/people')
-        .then((res) => res.json())
-        .then((data) => data.results as Array<{ name: string }>),
-    initialData: [],
-  })
-
   return (
     <div className="text-center">
       <header className="min-h-screen flex flex-col items-center justify-center bg-[#282c34] text-white text-[calc(10px+2vmin)]">
@@ -43,13 +33,6 @@ function App() {
         >
           Learn TanStack
         </a>
-        <div>
-          <ul>
-            {data.map((person) => (
-              <li key={person.name}>{person.name}</li>
-            ))}
-          </ul>
-        </div>
       </header>
     </div>
   )

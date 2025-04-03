@@ -1,6 +1,6 @@
 # Chat Client
 
-# Getting Started
+## Getting Started
 
 To run this application:
 
@@ -9,7 +9,7 @@ pnpm install
 pnpm start
 ```
 
-# Building For Production
+## Building For Production
 
 To build this application for production:
 
@@ -37,6 +37,14 @@ This project uses [eslint](https://eslint.org/) and [prettier](https://prettier.
 pnpm lint
 pnpm format
 pnpm check
+```
+
+## Shadcn
+
+Add components using the latest version of [Shadcn](https://ui.shadcn.com/).
+
+```bash
+pnpx shadcn@latest add button
 ```
 
 ## Routing
