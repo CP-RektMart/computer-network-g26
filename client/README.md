@@ -1,4 +1,4 @@
-Welcome to your new TanStack app!
+# Chat Client
 
 # Getting Started
 
