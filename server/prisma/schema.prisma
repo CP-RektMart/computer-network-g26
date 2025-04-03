@@ -1,0 +1,75 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int     @id @default(autoincrement())
+  username  String  @unique 
+  email     String  @unique 
+
+  password  String
+  messages  Message[]
+  directMessagesSent DirectMessage[] @relation("Sender")
+  directMessagesReceived DirectMessage[] @relation("Receiver")
+  groupMemberships GroupMember[]
+  createdAt DateTime @default(now())
+
+  @@index([username])
+  @@index([email])
+}
+
+model Group {
+  id        Int      @id @default(autoincrement())
+  name      String
+  members   GroupMember[]
+  messages  Message[]
+  createdAt DateTime @default(now())
+}
+
+model GroupMember {
+  userId  Int
+  groupId Int
+  role    String  @default("member") // 'admin', 'moderator', 'member'
+
+  user    User   @relation(fields: [userId], references: [id])
+  group   Group  @relation(fields: [groupId], references: [id])
+
+  @@id([userId, groupId])
+}
+
+model Message {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  groupId   Int
+  content   String
+  sentAt    DateTime @default(now())
+
+  user      User   @relation(fields: [userId], references: [id])
+  group     Group  @relation(fields: [groupId], references: [id])
+
+  @@index([groupId]) 
+}
+
+model DirectMessage {
+  id        Int      @id @default(autoincrement())
+  senderId  Int
+  receiverId Int
+  content   String
+  sentAt    DateTime @default(now())
+
+  sender    User   @relation("Sender", fields: [senderId], references: [id])
+  receiver  User   @relation("Receiver", fields: [receiverId], references: [id])
+
+  @@index([senderId, receiverId])  
+}

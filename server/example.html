@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Socket.IO Client</title>
+  <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+</head>
+<body>
+  <h1>Socket.IO Client</h1>
+
+  <!-- Username Input -->
+  <div>
+    <input type="text" id="usernameInput" placeholder="Enter your username" />
+  </div>
+
+  <!-- Messages Section -->
+  <div id="messages"></div>
+
+  <!-- Message Input -->
+  <input type="text" id="messageInput" placeholder="Type a message" />
+  <button onclick="sendMessage()">Send</button>
+
+  <script>
+    // Connect to the Socket.IO server
+    const socket = io('http://localhost:3000'); // URL of your Socket.IO server
+
+    // Listen for incoming messages from the server
+    socket.on('/socket/messages', (data) => {
+      const messagesDiv = document.getElementById('messages');
+      const newMessage = document.createElement('div');
+      newMessage.textContent = `${data.senderId}: ${data.content}`;
+      messagesDiv.appendChild(newMessage);
+    });
+
+    // Send message to server
+    function sendMessage() {
+      const messageInput = document.getElementById('messageInput');
+      const usernameInput = document.getElementById('usernameInput');
+      const message = messageInput.value;
+      const username = usernameInput.value || 'Anonymous';
+
+      if (message) {
+        const messageData = {
+          content: message,
+          senderId: username, 
+        };
+
+        // Emit the message to the server
+        socket.emit('/socket/messages', messageData);
+
+        // Clear the input fields
+        messageInput.value = '';
+      }
+    }
+  </script>
+</body>
+</html>

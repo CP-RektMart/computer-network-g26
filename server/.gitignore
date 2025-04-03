@@ -1,0 +1,47 @@
+# Node.js modules
+/node_modules/
+
+# Logs
+*.log
+logs/
+
+# Environment files
+.env
+.env.* # If you have multiple environment-specific files
+
+# Build files
+/dist/
+/build/
+
+# Temporary files
+*.tmp
+*.swp
+*.bak
+*.idea/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# NPM package lock file if you don't want to include it (optional)
+package-lock.json
+
+# Coverage directory for testing
+/coverage/
+
+# VSCode settings (optional)
+.vscode/
+
+# JetBrains IDE settings (optional)
+.idea/
+
+# PM2 process files (optional, if using PM2 for deployment)
+pids/
+*.pid
+
+# Documentation & report files
+*.pdf
+*.docx
+
+# Dependency directories from npm run dev
+/node_modules/

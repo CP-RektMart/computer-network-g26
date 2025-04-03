@@ -1,0 +1,40 @@
+{
+  "name": "computer-network-g26-backend",
+  "version": "1.0.0",
+  "description": "This is backend project in Computer Network 2110471 Chula, Backend server over express, socket.io, connect with postgres database, prisma orm.",
+  "main": "server.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "generate": "prisma generate",
+    "migrate": "npx prisma migrate dev --name init",
+    "migrate:deploy": "npx prisma migrate deploy",
+    "dev": "npm run generate && npm run migrate:deploy && nodemon src/server.ts"
+  },
+  "author": "g26",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^6.5.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "express-validator": "^7.2.1",
+    "prisma": "^6.5.0",
+    "socket.io": "^4.8.1",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/dotenv": "^6.1.1",
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.14.0",
+    "@types/socket.io": "^3.0.1",
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/swagger-ui-express": "^4.1.8",
+    "nodemon": "^3.1.9",
+    "prettier": "3.5.3",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.8.2"
+  }
+}
