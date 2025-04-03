@@ -1,1 +1,1 @@
-# 2110471 Computer Network Term Project: Socket Programming
+# 2110471 Computer Network Term Project
