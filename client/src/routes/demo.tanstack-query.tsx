@@ -11,7 +11,7 @@ function TanStackQueryDemo() {
     queryFn: () =>
       fetch('https://swapi.dev/api/people')
         .then((res) => res.json())
-        .then((d) => d.results as Array<{ name: string }>),
+        .then((d) => d.results as { name: string }[]),
     initialData: [],
   })
 

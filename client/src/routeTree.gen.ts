@@ -11,10 +11,17 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
+import { Route as ChatImport } from './routes/chat'
 import { Route as IndexImport } from './routes/index'
 import { Route as DemoTanstackQueryImport } from './routes/demo.tanstack-query'
 
 // Create/Update Routes
+
+const ChatRoute = ChatImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => rootRoute,
+} as any)
 
 const IndexRoute = IndexImport.update({
   id: '/',
@@ -39,6 +46,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexImport
       parentRoute: typeof rootRoute
     }
+    '/chat': {
+      id: '/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof ChatImport
+      parentRoute: typeof rootRoute
+    }
     '/demo/tanstack-query': {
       id: '/demo/tanstack-query'
       path: '/demo/tanstack-query'
@@ -53,36 +67,41 @@ declare module '@tanstack/react-router' {
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/chat': typeof ChatRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/chat': typeof ChatRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
+  '/chat': typeof ChatRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/demo/tanstack-query'
+  fullPaths: '/' | '/chat' | '/demo/tanstack-query'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/demo/tanstack-query'
-  id: '__root__' | '/' | '/demo/tanstack-query'
+  to: '/' | '/chat' | '/demo/tanstack-query'
+  id: '__root__' | '/' | '/chat' | '/demo/tanstack-query'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ChatRoute: typeof ChatRoute
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ChatRoute: ChatRoute,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
 }
 
@@ -97,11 +116,15 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/",
+        "/chat",
         "/demo/tanstack-query"
       ]
     },
     "/": {
       "filePath": "index.tsx"
+    },
+    "/chat": {
+      "filePath": "chat.tsx"
     },
     "/demo/tanstack-query": {
       "filePath": "demo.tanstack-query.tsx"
