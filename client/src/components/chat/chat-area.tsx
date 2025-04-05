@@ -3,6 +3,7 @@ import { Edit, Menu, MoreVertical, Send, Trash2 } from 'lucide-react'
 import type React from 'react'
 
 import type { Chat, Message, User } from '@/lib/types'
+import { DotPattern } from '@/components/ui/dot-pattern'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -14,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 
 interface ChatAreaProps {
   chat: Chat | null
@@ -109,7 +111,7 @@ export default function ChatArea({
   }
 
   return (
-    <div className="flex flex-1 flex-col bg-white">
+    <div className="flex flex-1 flex-col bg-white md:shadow-lg md:rounded-lg">
       {/* Chat header */}
       <div className="flex items-center justify-between border-b p-4">
         <div className="flex items-center space-x-3">
@@ -145,7 +147,13 @@ export default function ChatArea({
 
       {/* Messages area */}
       <ScrollArea className="flex-1 p-4">
-        <div className="space-y-4">
+        <DotPattern
+          className={cn(
+            '[mask-image:radial-gradient(300px_circle_at_center,transparent,white)]',
+            'opacity-50',
+          )}
+        />
+        <div className="relative space-y-4">
           {messages.length > 0 ? (
             messages.map((message) => {
               const isCurrentUser = message.senderId === currentUser.id
@@ -161,7 +169,7 @@ export default function ChatArea({
                   <div
                     className={`max-w-[70%] ${
                       isCurrentUser
-                        ? 'rounded-l-lg rounded-tr-lg bg-gray-900 text-white'
+                        ? 'rounded-l-lg rounded-tr-lg bg-primary text-white'
                         : 'rounded-r-lg rounded-tl-lg bg-gray-100 text-gray-900'
                     } overflow-hidden`}
                   >

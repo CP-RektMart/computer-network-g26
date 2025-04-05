@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LogOut, Menu, Search, UserPlus, Users, X } from 'lucide-react'
+import { Edit2, LogOut, Menu, Search, UserPlus, Users, X } from 'lucide-react'
 import type { Chat, User } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,6 +22,7 @@ interface ChatSidebarProps {
   onCreateGroup: (name: string, participants: User[]) => void
   onJoinGroup: (groupId: string) => void
   currentUser: User
+  onUpdateName: (newName: string) => void // New prop
   isMobileMenuOpen: boolean
   setIsMobileMenuOpen: (open: boolean) => void
 }
@@ -33,12 +34,15 @@ export default function ChatSidebar({
   onCreateGroup,
   onJoinGroup,
   currentUser,
+  onUpdateName,
   isMobileMenuOpen,
   setIsMobileMenuOpen,
 }: ChatSidebarProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [newGroupName, setNewGroupName] = useState('')
   const [groupIdToJoin, setGroupIdToJoin] = useState('')
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false)
+  const [editedName, setEditedName] = useState(currentUser.name)
 
   // Mock users for group creation
   const mockUsers: User[] = [
@@ -98,18 +102,14 @@ export default function ChatSidebar({
         className="fixed left-4 top-4 z-50 rounded-md bg-gray-100 p-2 md:hidden"
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
       >
-        {isMobileMenuOpen ? (
-          <X className="h-6 w-6" />
-        ) : (
-          <Menu className="h-6 w-6" />
-        )}
+        {isMobileMenuOpen ? <X /> : <Menu />}
       </button>
 
       {/* Sidebar */}
       <div
         className={`${
-          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-        } fixed inset-y-0 left-0 z-40 w-80 transform bg-white shadow-lg transition-transform duration-300 ease-in-out md:relative md:translate-x-0`}
+          isMobileMenuOpen ? 'translate-x-0 pt-14' : '-translate-x-full'
+        } fixed inset-y-0 left-0 z-40 w-80 transform bg-white md:rounded-lg shadow-lg transition-transform duration-300 ease-in-out md:relative md:translate-x-0`}
       >
         <div className="flex h-full flex-col">
           {/* User profile */}
@@ -124,14 +124,47 @@ export default function ChatSidebar({
                 <p className="text-xs text-gray-500">{currentUser.email}</p>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              // onClick={handleLogout}
-              title="Logout"
-            >
-              <LogOut className="h-5 w-5" />
-            </Button>
+            <div className="flex items-center">
+              {/* Edit profile button */}
+              <Dialog
+                open={isEditProfileOpen}
+                onOpenChange={setIsEditProfileOpen}
+              >
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="icon" title="Edit Profile">
+                    <Edit2 className="h-5 w-5" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Profile</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="profile-name">Name</Label>
+                      <Input
+                        id="profile-name"
+                        value={editedName}
+                        onChange={(e) => setEditedName(e.target.value)}
+                      />
+                    </div>
+                    <Button
+                      className="w-full"
+                      onClick={() => {
+                        onUpdateName(editedName)
+                        setIsEditProfileOpen(false)
+                      }}
+                      disabled={!editedName.trim()}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              <Button variant="ghost" size="icon" title="Logout">
+                <LogOut className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
 
           {/* Search and actions */}
@@ -200,7 +233,7 @@ export default function ChatSidebar({
                               </div>
                             </div>
                             {selectedUsers.some((u) => u.id === user.id) && (
-                              <div className="h-4 w-4 rounded-full bg-gray-900"></div>
+                              <div className="h-4 w-4 rounded-full bg-primary"></div>
                             )}
                           </div>
                         ))}
@@ -294,7 +327,7 @@ export default function ChatSidebar({
                         {chat.timestamp}
                       </span>
                       {chat.unread > 0 && (
-                        <Badge className="h-5 w-5 rounded-full p-0 flex items-center justify-center">
+                        <Badge className="h-5 w-5 rounded-full p-0 flex items-center justify-center bg-red-500">
                           {chat.unread}
                         </Badge>
                       )}

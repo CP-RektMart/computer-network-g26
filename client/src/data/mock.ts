@@ -158,4 +158,40 @@ export const initialMessages: Record<string, Message[]> = {
       isEdited: false,
     },
   ],
+  chat3: [
+    {
+      id: 'msg7',
+      chatId: 'chat3',
+      senderId: 'user3',
+      text: 'Can you send me the files?',
+      timestamp: 'Yesterday',
+      isEdited: false,
+    },
+    {
+      id: 'msg8',
+      chatId: 'chat3',
+      senderId: 'user1',
+      text: 'Sure, I will send them over shortly.',
+      timestamp: 'Yesterday',
+      isEdited: false,
+    },
+  ],
+  chat4: [
+    {
+      id: 'msg9',
+      chatId: 'chat4',
+      senderId: 'user5',
+      text: 'New mockups are ready for review.',
+      timestamp: 'Monday',
+      isEdited: false,
+    },
+    {
+      id: 'msg10',
+      chatId: 'chat4',
+      senderId: 'user1',
+      text: 'Great! I will check them out.',
+      timestamp: 'Monday',
+      isEdited: false,
+    },
+  ],
 }
