@@ -32,7 +32,7 @@ app.use(
 // Swagger
 app.use('/swagger', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
-//  Run Prisma Migrations and Connect to the Database
+//  Connect to the Database
 connectToDatabase();
 
 // // Use request logger

@@ -20,7 +20,7 @@ If you make any changes to the database schema, you'll need to run the migration
 ````
 npm run migrate
 ````
-If you want to deploy the latest database schema changes to the production environment, use:
+If you want to deploy the latest database schema changes, use:
 ````
 npm run generate
 npm run migrate:deploy
