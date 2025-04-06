@@ -105,6 +105,16 @@ function RouteComponent() {
     alert(`Joined group with ID: ${groupId}`)
   }
 
+  const handleUpdateName = (name: string) => {
+    if (!selectedChat) return
+
+    setChats(
+      chats.map((chat) =>
+        chat.id === selectedChat.id ? { ...chat, name } : chat,
+      ),
+    )
+  }
+
   return (
     <div className="flex h-dvh bg-gray-50 md:gap-4 md:p-4">
       <ChatSidebar
@@ -114,6 +124,7 @@ function RouteComponent() {
         onCreateGroup={handleCreateGroup}
         onJoinGroup={handleJoinGroup}
         currentUser={currentUser}
+        onUpdateName={handleUpdateName}
         isMobileMenuOpen={isMobileMenuOpen}
         setIsMobileMenuOpen={setIsMobileMenuOpen}
       />

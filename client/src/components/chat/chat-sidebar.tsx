@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 interface ChatSidebarProps {
   chats: Chat[]
@@ -22,7 +23,7 @@ interface ChatSidebarProps {
   onCreateGroup: (name: string, participants: User[]) => void
   onJoinGroup: (groupId: string) => void
   currentUser: User
-  onUpdateName: (newName: string) => void // New prop
+  onUpdateName: (newName: string) => void
   isMobileMenuOpen: boolean
   setIsMobileMenuOpen: (open: boolean) => void
 }
@@ -43,6 +44,7 @@ export default function ChatSidebar({
   const [groupIdToJoin, setGroupIdToJoin] = useState('')
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false)
   const [editedName, setEditedName] = useState(currentUser.name)
+  const [chatTypeFilter, setChatTypeFilter] = useState('all')
 
   // Mock users for group creation
   const mockUsers: User[] = [
@@ -91,9 +93,16 @@ export default function ChatSidebar({
     }
   }
 
-  const filteredChats = chats.filter((chat) =>
-    chat.name.toLowerCase().includes(searchQuery.toLowerCase()),
-  )
+  const filteredChats = chats.filter((chat) => {
+    const matchesSearch = chat.name
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase())
+    let matchesType = true
+    if (chatTypeFilter !== 'all') {
+      matchesType = chatTypeFilter === 'group' ? chat.isGroup : !chat.isGroup
+    }
+    return matchesSearch && matchesType
+  })
 
   return (
     <>
@@ -178,7 +187,8 @@ export default function ChatSidebar({
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <div className="flex space-x-2">
+
+            <div className="flex space-x-2 mb-4">
               <Dialog>
                 <DialogTrigger asChild>
                   <Button className="flex-1">
@@ -284,6 +294,14 @@ export default function ChatSidebar({
                 </DialogContent>
               </Dialog>
             </div>
+
+            <Tabs defaultValue="all" onValueChange={setChatTypeFilter}>
+              <TabsList className="w-full">
+                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="person">Person</TabsTrigger>
+                <TabsTrigger value="group">Group</TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
 
           {/* Chat list */}

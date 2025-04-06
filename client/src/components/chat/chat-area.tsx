@@ -150,6 +150,7 @@ export default function ChatArea({
         <DotPattern
           className={cn(
             '[mask-image:radial-gradient(300px_circle_at_center,transparent,white)]',
+            'md:[mask-image:radial-gradient(900px_circle_at_center,transparent,white)]',
             'opacity-50',
           )}
         />
@@ -169,8 +170,8 @@ export default function ChatArea({
                   <div
                     className={`max-w-[70%] ${
                       isCurrentUser
-                        ? 'rounded-l-lg rounded-tr-lg bg-primary text-white'
-                        : 'rounded-r-lg rounded-tl-lg bg-gray-100 text-gray-900'
+                        ? 'rounded-lg bg-primary text-white'
+                        : 'rounded-lg bg-gray-100 text-gray-900'
                     } overflow-hidden`}
                   >
                     {!isCurrentUser && chat.isGroup && (
@@ -197,7 +198,11 @@ export default function ChatArea({
                             >
                               Cancel
                             </Button>
-                            <Button size="sm" onClick={saveEditMessage}>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={saveEditMessage}
+                            >
                               Save
                             </Button>
                           </div>
@@ -234,16 +239,17 @@ export default function ChatArea({
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
                           onClick={() => startEditMessage(message)}
+                          className="text-gray-900 focus:text-gray-900"
                         >
                           <Edit className="mr-2 h-4 w-4" />
                           Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => onDeleteMessage(message.id)}
-                          className="text-red-500"
+                          className="text-red-500 focus:text-red-500"
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
+                          Unsend
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
