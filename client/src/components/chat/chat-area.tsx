@@ -5,7 +5,7 @@ import type React from 'react'
 import type { Chat, Message, User } from '@/lib/types'
 import { DotPattern } from '@/components/ui/dot-pattern'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -183,12 +183,13 @@ export default function ChatArea({
                     <div className="p-4">
                       {editingMessageId === message.id ? (
                         <div className="space-y-2">
-                          <Input
+                          <Textarea
                             value={editText}
                             onChange={(e) => setEditText(e.target.value)}
                             onKeyDown={handleKeyDown}
                             autoFocus
-                            className="bg-white text-gray-900"
+                            className="bg-white text-gray-900 min-h-[100px] resize-y"
+                            placeholder="Edit your message..."
                           />
                           <div className="flex justify-end space-x-2">
                             <Button
@@ -269,14 +270,20 @@ export default function ChatArea({
       {/* Message input */}
       <div className="border-t p-4">
         <form onSubmit={handleSendMessage} className="flex space-x-2">
-          <Input
-            placeholder="Type a message..."
+          <Textarea
+            placeholder="Type a message... (Shift+Enter for new line)"
             value={messageText}
             onChange={(e) => setMessageText(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="flex-1"
+            className="flex-1 min-h-10 max-h-52 resize-y py-2"
+            rows={1}
           />
-          <Button type="submit" disabled={!messageText.trim()}>
+          <Button
+            type="submit"
+            disabled={!messageText.trim()}
+            className="self-end"
+            size="lg"
+          >
             <Send className="h-4 w-4" />
           </Button>
         </form>
