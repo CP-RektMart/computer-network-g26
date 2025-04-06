@@ -5,54 +5,236 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Socket.IO Client</title>
   <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+  <style>
+    body {
+      display: flex;
+      justify-content: space-between;
+      padding: 20px;
+    }
+    #leftSection {
+      width: 45%;
+    }
+    #rightSection {
+      width: 45%;
+    }
+    #exampleTokens {
+      margin-top: 20px;
+    }
+    .exampleToken {
+      margin: 10px 0;
+      padding: 10px;
+      background-color: #f0f0f0;
+      border: 1px solid #ccc;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
-  <h1>Socket.IO Client</h1>
+  <div id="leftSection">
+    <h1>Socket.IO Client</h1>
 
-  <!-- Username Input -->
-  <div>
-    <input type="text" id="usernameInput" placeholder="Enter your username" />
+    <!-- JWT Token Input -->
+    <div>
+      <textarea id="jwtTokenInput" placeholder="Enter your JWT token" style="width: 100%; height: 100px; font-size: 16px;"></textarea>
+    </div>
+    
+    <!-- Connection Type Selection -->
+    <div>
+      <label for="connectionType">Connection Type:</label>
+      <select id="connectionType" onchange="toggleConnectionInputs()">
+        <option value="group">Group</option>
+        <option value="direct">Direct</option>
+      </select>
+    </div>
+
+    <!-- Group or Receiver ID Inputs -->
+    <div id="groupIdSection">
+      <label for="groupIdInput">Group ID:</label>
+      <input type="text" id="groupIdInput" placeholder="Enter group ID" />
+    </div>
+    <div id="receiverIdSection" style="display: none;">
+      <label for="receiverIdInput">Receiver ID:</label>
+      <input type="text" id="receiverIdInput" placeholder="Enter receiver ID" />
+    </div>
+
+    <button onclick="connectToServer()">Connect</button>
+
+    <!-- Show Connection Data -->
+    <div id="connectionDataSection">
+      <strong>Connection Info:</strong>
+      <div id="connectionStatus">Not connected</div>
+      <div id="connectionDetails" style="display: none;">
+        <div><strong>UserId: </strong><span id="userIdDisplay">None</span></div> 
+        <div><strong>Name: </strong><span id="nameDisplay">None</span></div> 
+        <div><strong>Type: </strong><span id="connectionTypeDisplay">None</span></div>
+        <div id="groupIdDisplaySection"><strong>Group ID: </strong><span id="groupIdDisplay">None</span></div>
+        <div id="receiverIdDisplaySection"><strong>Receiver ID: </strong><span id="receiverIdDisplay">None</span></div>
+      </div>
+    </div>
+
+    <!-- Messages Section -->
+    <div id="messages"></div>
+
+    <!-- Message Input -->
+    <input type="text" id="messageInput" placeholder="Type a message" />
+    <button onclick="sendMessage()">Send</button>
   </div>
 
-  <!-- Messages Section -->
-  <div id="messages"></div>
-
-  <!-- Message Input -->
-  <input type="text" id="messageInput" placeholder="Type a message" />
-  <button onclick="sendMessage()">Send</button>
+  <div id="rightSection">
+    <h2>Example JWT Tokens (JWT_SECRET = SECRET)</h2>
+    <div id="exampleTokens">
+      <div class="exampleToken" onclick="setJwtToken('exampleToken1')">1 John Doe</div>
+      <div class="exampleToken" onclick="setJwtToken('exampleToken2')">2 Siriwid Tin</div>
+      <div class="exampleToken" onclick="setJwtToken('exampleToken3')">3 Eiei Kung</div>
+      <div class="exampleToken" onclick="setJwtToken('exampleToken4')">4 Spark Doom</div>
+      <div class="exampleToken" onclick="setJwtToken('exampleToken5')">5 Monkey King</div>
+    </div>
+  </div>
 
   <script>
-    // Connect to the Socket.IO server
-    const socket = io('http://localhost:3000'); // URL of your Socket.IO server
+    let socket; // Declare socket variable globally
 
-    // Listen for incoming messages from the server
-    socket.on('/socket/messages', (data) => {
+    // Function to connect to the server with the JWT token
+    function connectToServer() {
+      const jwtToken = document.getElementById('jwtTokenInput').value;
+      const connectionType = document.getElementById('connectionType').value;
+      const groupId = document.getElementById('groupIdInput').value;
+      const receiverId = document.getElementById('receiverIdInput').value;
+
+      if (!jwtToken) {
+        alert("Please enter a JWT token to connect.");
+        return;
+      }
+
+      // Validate groupId or receiverId based on connection type
+      if (connectionType === 'group' && !groupId) {
+        alert("Please enter a Group ID for the group connection.");
+        return;
+      }
+      if (connectionType === 'direct' && !receiverId) {
+        alert("Please enter a Receiver ID for the direct connection.");
+        return;
+      }
+
+      // If a socket connection already exists, disconnect it
+      if (socket && socket.connected) {
+        socket.disconnect();
+        console.log('Old socket connection closed.');
+      }
+
+      // Clear previous messages before establishing a new connection
       const messagesDiv = document.getElementById('messages');
-      const newMessage = document.createElement('div');
-      newMessage.textContent = `${data.senderId}: ${data.content}`;
-      messagesDiv.appendChild(newMessage);
-    });
+      messagesDiv.innerHTML = '';
+
+      // Connect to the Socket.IO server with JWT token and connection-specific data
+      socket = io('http://localhost:3000', {
+        auth: {
+          token: jwtToken, // Send JWT token in the connection request
+          type: connectionType, // Send the selected type
+          groupId: connectionType === 'group' ? groupId : undefined, // Send groupId if type is 'group'
+          receiverId: connectionType === 'direct' ? receiverId : undefined, // Send receiverId if type is 'direct'
+        },
+      });
+
+      // Listen for incoming messages from the server
+      socket.on('/socket/messages', (data) => {
+        console.log(data)
+        const messagesDiv = document.getElementById('messages');
+        const newMessage = document.createElement('div');
+        newMessage.textContent = `${data.name}: ${data.message}`;
+        messagesDiv.appendChild(newMessage);
+      });
+
+      // Log the connection status
+      socket.on('connect', () => {
+        console.log('Connected to server with socket ID:', socket.id);
+
+        // Update connection status and show connection details
+        document.getElementById('connectionStatus').textContent = 'Connected';
+        document.getElementById('connectionDetails').style.display = 'block';
+      });
+
+      socket.on('connect_error', (err) => {
+        console.error('Connection error:', err.message);
+      });
+
+      // Listen for connection details (type, groupId, receiverId)
+      socket.on('connected', (data) => {
+        console.log('Connected with data:', data);
+
+        // Update connection info on the page
+        document.getElementById('connectionTypeDisplay').textContent = data.type || 'None';
+        document.getElementById('nameDisplay').textContent = data.name || 'None';  
+        document.getElementById('userIdDisplay').textContent = data.userId || 'None';  
+
+        // Show or hide Group ID section based on value
+        if (data.groupId) {
+          document.getElementById('groupIdDisplay').textContent = data.groupId;
+          document.getElementById('groupIdDisplaySection').style.display = 'block'; // Show
+        } else {
+          document.getElementById('groupIdDisplaySection').style.display = 'none'; // Hide
+        }
+
+        // Show or hide Receiver ID section based on value
+        if (data.receiverId) {
+          document.getElementById('receiverIdDisplay').textContent = data.receiverId;
+          document.getElementById('receiverIdDisplaySection').style.display = 'block'; // Show
+        } else {
+          document.getElementById('receiverIdDisplaySection').style.display = 'none'; // Hide
+        }
+      });
+    }
+
+    // Function to toggle the visibility of the Group ID or Receiver ID input fields
+    function toggleConnectionInputs() {
+      const connectionType = document.getElementById('connectionType').value;
+
+      if (connectionType === 'group') {
+        document.getElementById('groupIdSection').style.display = 'block';
+        document.getElementById('receiverIdSection').style.display = 'none';
+      } else {
+        document.getElementById('groupIdSection').style.display = 'none';
+        document.getElementById('receiverIdSection').style.display = 'block';
+      }
+    }
 
     // Send message to server
     function sendMessage() {
       const messageInput = document.getElementById('messageInput');
-      const usernameInput = document.getElementById('usernameInput');
       const message = messageInput.value;
-      const username = usernameInput.value || 'Anonymous';
 
-      if (message) {
-        const messageData = {
-          content: message,
-          senderId: username, 
-        };
-
-        // Emit the message to the server
-        socket.emit('/socket/messages', messageData);
-
-        // Clear the input fields
-        messageInput.value = '';
+      if (!message) {
+        alert("Please enter a message.");
+        return;
       }
+
+      const messageData = {
+        content: message,
+        senderId: socket.id, 
+      };
+      console.log('Sending message:', messageData);
+      // Emit the message to the server
+      socket.emit('/socket/messages', messageData);
+
+      // Clear the input field
+      messageInput.value = '';
     }
+
+    // Set JWT Token when clicking on example tokens
+    function setJwtToken(exampleToken) {
+      const tokenMap = {
+        exampleToken1: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNTE2MjM5MDIyLCJ1c2VySWQiOjEsIm5hbWUiOiJKb2huIERvZSJ9.lajg-DFxWnOmUNW7Vy6OdHd42pSZihiUNgppuLrY8mc',
+        exampleToken2: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNTE2MjM5MDIyLCJ1c2VySWQiOjIsIm5hbWUiOiJTaXJpd2lkIFRpbiJ9.5l0MuK4a3xNvBwSmxLucY_DtzngYShdCue0QOVnLraY',
+        exampleToken3: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNTE2MjM5MDIyLCJ1c2VySWQiOjMsIm5hbWUiOiJFaWVpIEt1bmcifQ.vPZyQXHEI4sWwRJ2gjBai0us3q5-EBm24MagWzkj7Q4',
+        exampleToken4: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNTE2MjM5MDIyLCJ1c2VySWQiOjQsIm5hbWUiOiJTcGFyayBEb29tIn0.11R88VVI41nc81aA6p1e95v7UJsyn7mOOKu2p1kLTDs',
+        exampleToken5: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNTE2MjM5MDIyLCJ1c2VySWQiOjUsIm5hbWUiOiJNb25rZXkgS2luZyJ9.yihzb7LGvfKICFxcVx3JIBkFymYT9RXFVUsYKF1br5s',
+      };
+
+      document.getElementById('jwtTokenInput').value = tokenMap[exampleToken];
+    }
+
+    // Call toggleConnectionInputs on page load to set initial visibility
+    window.onload = toggleConnectionInputs;
   </script>
 </body>
 </html>

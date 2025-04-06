@@ -11,7 +11,6 @@ import swaggerDocs from '@/swagger';
 import swaggerUi from 'swagger-ui-express';
 
 import userRoutes from '@/services/users/route';
-import CustomMessageHandler from './services/messages/socket';
 
 config();
 
@@ -46,7 +45,7 @@ app.use('/health', (req: express.Request, res: express.Response) => {
 app.use('/api/users', userRoutes);
 
 // Setup Socket IO
-setupSocket(server, '/socket/messages', CustomMessageHandler);
+setupSocket(server, '/socket/messages');
 
 // 404 Handler & Global Error Handler
 app.use(handle404);

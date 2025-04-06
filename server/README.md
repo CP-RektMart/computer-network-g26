@@ -31,3 +31,6 @@ npm run migrate:deploy
 npm run dev
 ````
 Default it will also run generate and migrate:deploy for lately
+
+### Example group/direct Chat 
+Open file **example.html** for play with group / direct messages socket.io
