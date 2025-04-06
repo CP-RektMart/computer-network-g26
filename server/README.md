@@ -12,6 +12,7 @@ docker-compose up
 
 ### ENV
 **PORT**: The port on which the server will run.<br />
+**JWT_SECRET**: The jwt secret.<br />
 **LOG_REQUESTS**: Set this to **FULL** for detailed logs, **SMALL** for minimal logs, or leave it **empty** for no logging.<br />
 **DATABASE_URL**: The URL to your database.<br />
 
