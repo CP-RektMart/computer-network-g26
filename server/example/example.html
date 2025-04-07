@@ -27,6 +27,11 @@
       border: 1px solid #ccc;
       cursor: pointer;
     }
+    #messages {
+    height: 300px; 
+    overflow-y: auto;
+    border: 1px solid #ccc; 
+  }
   </style>
 </head>
 <body>
@@ -83,19 +88,25 @@
   <div id="rightSection">
     <h2>Example JWT Tokens (JWT_SECRET = SECRET)</h2>
     <div id="exampleTokens">
-      <div class="exampleToken" onclick="setJwtToken('exampleToken1')">1 John Doe</div>
-      <div class="exampleToken" onclick="setJwtToken('exampleToken2')">2 Siriwid Tin</div>
-      <div class="exampleToken" onclick="setJwtToken('exampleToken3')">3 Eiei Kung</div>
-      <div class="exampleToken" onclick="setJwtToken('exampleToken4')">4 Spark Doom</div>
-      <div class="exampleToken" onclick="setJwtToken('exampleToken5')">5 Monkey King</div>
+      <div class="exampleToken" onclick="setJwtToken('exampleToken1')">UserId: 1: Joined Group 1</div>
+      <div class="exampleToken" onclick="setJwtToken('exampleToken2')">UserId: 2: Joined Group 1</div>
+      <div class="exampleToken" onclick="setJwtToken('exampleToken3')">UserId: 3: Joined Group 1, 2</div>
+      <div class="exampleToken" onclick="setJwtToken('exampleToken4')">UserId: 4: Joined Group 2</div>
+      <div class="exampleToken" onclick="setJwtToken('exampleToken5')">UserId: 5: Joined Group 2</div>
     </div>
   </div>
 
   <script>
-    let socket; // Declare socket variable globally
+    let socket; 
+    let lastMessageId = null; 
+    let lastSendAt = null;
+    const pageSize = 20;
+    let isFetching = false;
+    let hasMoreMessages = true;
+    let previousScrollTop = 0;
 
     // Function to connect to the server with the JWT token
-    function connectToServer() {
+    async function connectToServer() {
       const jwtToken = document.getElementById('jwtTokenInput').value;
       const connectionType = document.getElementById('connectionType').value;
       const groupId = document.getElementById('groupIdInput').value;
@@ -137,19 +148,20 @@
       });
 
       // Listen for incoming messages from the server
-      socket.on('/socket/messages', (data) => {
+      socket.on('socket-messages', (data) => {
         console.log(data)
         const messagesDiv = document.getElementById('messages');
         const newMessage = document.createElement('div');
-        newMessage.textContent = `${data.name}: ${data.message}`;
+        console.log("Received message:", data);
+        newMessage.textContent = `${data.user.username}: ${data.content}`;
         messagesDiv.appendChild(newMessage);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
       });
 
       // Log the connection status
-      socket.on('connect', () => {
+      socket.on('connect', async () => {
         console.log('Connected to server with socket ID:', socket.id);
 
-        // Update connection status and show connection details
         document.getElementById('connectionStatus').textContent = 'Connected';
         document.getElementById('connectionDetails').style.display = 'block';
       });
@@ -158,13 +170,20 @@
         console.error('Connection error:', err.message);
       });
 
+      socket.on('disconnectReason', (reason) => {
+        console.warn('Disconnected from server. Reason:', reason);
+
+        document.getElementById('connectionStatus').textContent = 'Disconnected';
+        document.getElementById('connectionDetails').style.display = 'none';
+      });
+
       // Listen for connection details (type, groupId, receiverId)
-      socket.on('connected', (data) => {
+      socket.on('connected', async (data) => {
         console.log('Connected with data:', data);
 
         // Update connection info on the page
         document.getElementById('connectionTypeDisplay').textContent = data.type || 'None';
-        document.getElementById('nameDisplay').textContent = data.name || 'None';  
+        document.getElementById('nameDisplay').textContent = data.username || 'None';  
         document.getElementById('userIdDisplay').textContent = data.userId || 'None';  
 
         // Show or hide Group ID section based on value
@@ -175,7 +194,7 @@
           document.getElementById('groupIdDisplaySection').style.display = 'none'; // Hide
         }
 
-        // Show or hide Receiver ID section based on value
+        // Show or hide Receiver ID section based on n
         if (data.receiverId) {
           document.getElementById('receiverIdDisplay').textContent = data.receiverId;
           document.getElementById('receiverIdDisplaySection').style.display = 'block'; // Show
@@ -183,6 +202,13 @@
           document.getElementById('receiverIdDisplaySection').style.display = 'none'; // Hide
         }
       });
+
+      hasMoreMessages = true;
+      previousScrollTop = 0;
+      lastMessageId = null; 
+      lastSendAt = null;
+      isFetching = false;
+      fetchRecentlyMessages() 
     }
 
     // Function to toggle the visibility of the Group ID or Receiver ID input fields
@@ -202,7 +228,7 @@
     function sendMessage() {
       const messageInput = document.getElementById('messageInput');
       const message = messageInput.value;
-
+      console.log("Sending message:", message);
       if (!message) {
         alert("Please enter a message.");
         return;
@@ -212,9 +238,8 @@
         content: message,
         senderId: socket.id, 
       };
-      console.log('Sending message:', messageData);
       // Emit the message to the server
-      socket.emit('/socket/messages', messageData);
+      socket.emit('socket-messages', messageData);
 
       // Clear the input field
       messageInput.value = '';
@@ -233,8 +258,92 @@
       document.getElementById('jwtTokenInput').value = tokenMap[exampleToken];
     }
 
-    // Call toggleConnectionInputs on page load to set initial visibility
     window.onload = toggleConnectionInputs;
+
+    async function fetchRecentlyMessages() {
+      try {
+        const messagesDiv = document.getElementById('messages');
+        const jwtToken = document.getElementById('jwtTokenInput').value;
+        const groupId = document.getElementById('groupIdInput').value;
+
+        const res = await fetch(`http://localhost:3000/api/groups/${groupId}/messages?limit=${pageSize}`, {
+            headers: {
+              'Authorization': `Bearer ${jwtToken}`,
+            }
+          });
+
+        if (!res.ok) throw new Error('Failed to fetch message history');
+
+        const recentlyMessages = await res.json();
+
+        console.log("Fetched recently 20 messages:", recentlyMessages);
+        recentlyMessages.forEach((data) => {
+          const msg = document.createElement('div');
+          msg.textContent = `${data.user.username}: ${data.content}`;
+          messagesDiv.insertBefore(msg, messagesDiv.firstChild); 
+        });
+        lastMessageId = recentlyMessages[recentlyMessages.length - 1].id;
+        lastSendAt = recentlyMessages[recentlyMessages.length - 1].sentAt;
+
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+      } catch (err) {
+        console.error("Error fetching history:", err);
+      }
+    }
+
+    async function fetchMoreMessages() {
+      if (isFetching || !hasMoreMessages) return;
+      isFetching = true;
+
+      try {
+        const messagesDiv = document.getElementById('messages');
+        const groupId = document.getElementById('groupIdInput').value;
+        const jwtToken = document.getElementById('jwtTokenInput').value;
+          if (lastMessageId === null) return; // No more messages to fetch
+        const res = await fetch(`http://localhost:3000/api/groups/${groupId}/messages?limit=${pageSize}&before=${lastSendAt}`, {
+            headers: {
+              'Authorization': `Bearer ${jwtToken}`,
+            }
+          });
+
+        if (!res.ok) throw new Error('Failed to fetch more messages');
+
+        const olderMessages = await res.json();
+        console.log("Fetched older 20 messages:", olderMessages);
+
+        if (olderMessages.length === 0) {
+          hasMoreMessages = false;
+          return;
+        }
+
+        const previousScrollHeight = messagesDiv.scrollHeight;
+
+        olderMessages.forEach((data) => {
+          const msg = document.createElement('div');
+          msg.textContent = `${data.user.username}: ${data.content}`;
+          messagesDiv.insertBefore(msg, messagesDiv.firstChild);
+        });
+
+        lastMessageId = olderMessages[olderMessages.length - 1].id;
+        lastSendAt = olderMessages[olderMessages.length - 1].sentAt;
+
+        // Maintain scroll position after loading
+        messagesDiv.scrollTop = messagesDiv.scrollHeight - previousScrollHeight;
+
+      } catch (err) {
+        console.error("Error fetching more messages:", err);
+      } finally {
+        isFetching = false;
+      }
+    }
+    document.getElementById('messages').addEventListener('scroll', async function () {
+        const messagesDiv = this;
+        if (messagesDiv.scrollTop === 0 && !isFetching && hasMoreMessages) {
+          await fetchMoreMessages();
+        }
+      });
+
   </script>
 </body>
 </html>

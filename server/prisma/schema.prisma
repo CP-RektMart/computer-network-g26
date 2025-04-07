@@ -15,14 +15,14 @@ datasource db {
 
 model User {
   id        Int     @id @default(autoincrement())
-  username  String  @unique 
-  email     String  @unique 
-
+  username  String  @unique
+  email     String  @unique
   password  String
-  messages  Message[]
-  directMessagesSent DirectMessage[] @relation("Sender")
+  salt      String
+  groupMessages  GroupMessage[]  // Assuming GroupMessage model exists
+  directMessagesSent     DirectMessage[] @relation("Sender")
   directMessagesReceived DirectMessage[] @relation("Receiver")
-  groupMemberships GroupMember[]
+  groupMemberships       GroupMember[]   // Assuming GroupMember model exists
   createdAt DateTime @default(now())
 
   @@index([username])
@@ -33,7 +33,7 @@ model Group {
   id        Int      @id @default(autoincrement())
   name      String
   members   GroupMember[]
-  messages  Message[]
+  messages  GroupMessage[]
   createdAt DateTime @default(now())
 }
 
@@ -45,11 +45,13 @@ model GroupMember {
   user    User   @relation(fields: [userId], references: [id])
   group   Group  @relation(fields: [groupId], references: [id])
 
+  joinedAt DateTime @default(now())
+
   @@id([userId, groupId])
 }
 
-model Message {
-  id        Int      @id @default(autoincrement())
+model GroupMessage {
+  id        String      
   userId    Int
   groupId   Int
   content   String
@@ -59,6 +61,7 @@ model Message {
   group     Group  @relation(fields: [groupId], references: [id])
 
   @@index([groupId]) 
+  @@id ([id, sentAt])
 }
 
 model DirectMessage {

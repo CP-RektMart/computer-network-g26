@@ -1,28 +1,20 @@
-import { Server, Socket } from 'socket.io';
+import { Socket } from 'socket.io';
+import { Server } from 'socket.io';
 import { Server as HttpServer } from 'http';
-import dotenv from 'dotenv';
+import { GroupMessage } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 
-dotenv.config();
+import { JWT_SECRET, LOG_LEVEL } from '@/env';
+import { getUserById } from '@/services/users/controller';
+import { isGroupExist, isMemberOfGroup, saveGroupMessage } from '@/services/groups/controller';
+// TODO: // import { saveDirectMessage } from '@/services/directs/controller'; // You need to implement this
 
-const logLevel: string = process.env.LOG_REQUESTS || '';
-const JWT_SECRET = process.env.JWT_SECRET || '';
-
-interface ChatSocket extends Socket {
-  name?: string;
-  userId?: string;
+export interface ChatSocket extends Socket {
+  userId?: number;
+  username?: string;
   type?: string;
-  groupId?: string;
-  receiverId?: string;
-}
-
-interface ChatResponse {
-  userId: string;
-  name: string;
-  type: 'group' | 'direct';
-  message: string;
-  groupId?: string;
-  receiverId?: string;
+  groupId?: number;
+  receiverId?: number;
 }
 
 const setupSocket = (server: HttpServer, eventName: string): Server => {
@@ -33,88 +25,121 @@ const setupSocket = (server: HttpServer, eventName: string): Server => {
     },
   });
 
-  io.use((socket: ChatSocket, next) => {
+  // Middleware to authenticate the user using JWT
+  io.use(async (socket: ChatSocket, next) => {
     const token = socket.handshake.auth.token;
-    if (!token) return next(new Error('Authentication error: Token missing'));
+    if (!token) return next(new Error('Token missing'));
 
     try {
       const decoded: any = jwt.verify(token, JWT_SECRET);
+      const user = decoded.userId ? await getUserById(parseInt(decoded.userId)) : null;
+      if (!user) return next(new Error('User not found'));
 
-      if (decoded && typeof decoded !== 'string' && decoded.userId && decoded.name) {
-        socket.userId = decoded.userId;
-        socket.name = decoded.name;
-        next();
-      } else {
-        next(new Error('Authentication error: Invalid token payload. Missing userId or name'));
-      }
+      socket.userId = user.id;
+      socket.username = user.username;
+      next();
     } catch {
-      next(new Error('Authentication error: Invalid token'));
+      return next(new Error('Invalid token'));
     }
   });
 
-  io.on('connection', (socket: ChatSocket) => {
+  // Listen for incoming connections
+  io.on('connection', async (socket: ChatSocket) => {
     const { type, groupId, receiverId } = socket.handshake.auth;
-    if (!socket.userId || !socket.name || !type) return socket.disconnect();
 
-    socket.type = type;
+    if (!socket.userId || !socket.username) {
+      return emitDisconnectReason(socket, 'Missing user info');
+    }
 
+    // Group
     if (type === 'group') {
-      if (!groupId) return socket.disconnect();
-      socket.groupId = groupId;
-      socket.join(groupFormat(groupId));
-    } else if (type === 'direct') {
-      if (!receiverId) return socket.disconnect();
-      socket.receiverId = receiverId;
-      socket.join(directFormat(socket.userId, receiverId));
-    } else {
-      return socket.disconnect();
+      if (!groupId) return emitDisconnectReason(socket, 'Group ID missing');
+
+      const exist = await isGroupExist(parseInt(groupId));
+      if (!exist) return emitDisconnectReason(socket, 'Group not found');
+
+      const isMember = await isMemberOfGroup(socket.userId, parseInt(groupId));
+      if (!isMember) return emitDisconnectReason(socket, 'Permission denied');
+
+      socket.type = 'group';
+      socket.groupId = parseInt(groupId);
+      socket.join(groupFormat(socket.groupId));
+    }
+    // Direct
+    else if (type === 'direct') {
+      if (!receiverId) return emitDisconnectReason(socket, 'Receiver ID missing');
+
+      socket.type = 'direct';
+      socket.receiverId = parseInt(receiverId);
+      socket.join(directFormat(socket.userId, socket.receiverId));
+    }
+    // Invalid type
+    else {
+      return emitDisconnectReason(socket, 'Invalid chat type');
     }
 
     emitConnectionInfo(socket);
     logConnection(socket);
 
     socket.on(eventName, (data) => {
-      if (!socket.userId || !socket.name || !data?.content) return socket.disconnect();
-
-      logMessage(socket, data.content, eventName);
-
-      const message: ChatResponse = {
-        userId: socket.userId,
-        name: socket.name,
-        message: data.content,
-        type: socket.type as 'group' | 'direct',
-      };
+      if (!data?.content) return;
 
       if (socket.type === 'group' && socket.groupId) {
-        io.to(groupFormat(socket.groupId)).emit(eventName, message);
+        const message = {
+          id: groupMessageUniqueId(socket.userId!, socket.groupId!),
+          groupId: socket.groupId!,
+          userId: socket.userId!,
+          content: data.content,
+          sentAt: new Date(),
+          user: {
+            id: socket.userId!,
+            username: socket.username!,
+          },
+        };
+        saveGroupMessage(message);
+        logMessage(socket, data.content, eventName);
+
+        io.to(groupFormat(socket.groupId!)).emit(eventName, message);
       } else if (socket.type === 'direct' && socket.receiverId) {
-        io.to(directFormat(socket.userId, socket.receiverId)).emit(eventName, message);
+        const message = {
+          id: directMessageUniqueId(socket.userId!, socket.receiverId!),
+          senderId: socket.userId!,
+          receiverId: socket.receiverId!,
+          content: data.content,
+          sentAt: new Date(),
+        };
+        // saveDirectMessage(message); // You must implement this function in your controller
+        logMessage(socket, data.content, eventName);
+        io.to(directFormat(socket.userId!, socket.receiverId!)).emit(eventName, message);
       }
     });
 
     socket.on('disconnect', () => {
-      if (logLevel) {
-        console.log('A user disconnected:', socket.id);
-      }
+      console.log('Socket disconnected:', socket.id);
     });
   });
 
   return io;
 };
 
-const groupFormat = (groupId: string): string => {
-  return `group-${groupId}`;
-};
-
-const directFormat = (id1: string, id2: string): string => {
+export const groupFormat = (groupId: number): string => `group-${groupId}`;
+export const directFormat = (id1: number, id2: number): string => {
   const [lower, greater] = id1 < id2 ? [id1, id2] : [id2, id1];
   return `direct-${lower}-${greater}`;
+};
+
+export const groupMessageUniqueId = (userId: number, groupId: number) => `${userId}-group-${groupId}`;
+export const directMessageUniqueId = (userId: number, receiverId: number) => `${userId}-direct-${receiverId}`;
+
+const emitDisconnectReason = (socket: ChatSocket, reason: string) => {
+  socket.emit('disconnectReason', reason);
+  socket.disconnect(true);
 };
 
 const emitConnectionInfo = (socket: ChatSocket) => {
   socket.emit('connected', {
     userId: socket.userId,
-    name: socket.name,
+    username: socket.username,
     type: socket.type,
     groupId: socket.groupId,
     receiverId: socket.receiverId,
@@ -122,32 +147,18 @@ const emitConnectionInfo = (socket: ChatSocket) => {
 };
 
 const logConnection = (socket: ChatSocket) => {
-  if (!logLevel) return;
-
-  let details = `User ID: ${socket.userId} - Name: ${socket.name} - Sender ID: ${socket.id}`;
-
-  if (socket.type === 'group' && socket.groupId) {
-    details += ` - Connected to group with groupId: ${socket.groupId}`;
-  } else if (socket.type === 'direct' && socket.receiverId) {
-    details += ` - Connected for direct message to ${directFormat(socket.userId!, socket.receiverId)}`;
-  } else {
-    details += ' - No groupId or receiverId available';
-  }
-
+  if (!LOG_LEVEL) return;
+  let details = `User ID: ${socket.userId} - Name: ${socket.username} - Sender ID: ${socket.id}`;
+  if (socket.type === 'group') details += ` - Connected to group ${socket.groupId}`;
+  if (socket.type === 'direct') details += ` - DM with ${socket.receiverId}`;
   console.log(details);
 };
 
 const logMessage = (socket: ChatSocket, content: string, eventName: string) => {
-  if (!logLevel) return;
-
-  let details = `User ID: ${socket.userId} - Message received for event "${eventName}": ${content}`;
-
-  if (socket.type === 'group' && socket.groupId) {
-    details += ` - Sent to group with groupId: ${socket.groupId}`;
-  } else if (socket.type === 'direct' && socket.receiverId) {
-    details += ` - Sent directly to ${directFormat(socket.userId!, socket.receiverId)}`;
-  }
-
+  if (!LOG_LEVEL) return;
+  let details = `User ID: ${socket.userId} - Message for "${eventName}": ${content}`;
+  if (socket.type === 'group') details += ` - Group ${socket.groupId}`;
+  if (socket.type === 'direct') details += ` - DM to ${directFormat(socket.userId!, socket.receiverId!)}`;
   console.log(details);
 };
 

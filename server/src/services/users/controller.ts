@@ -1,81 +1,66 @@
 import * as express from 'express';
 import { prisma } from '@/database';
+import { User } from '@prisma/client';
 
-export const registerUser = async (req: express.Request, res: express.Response): Promise<void> => {
-  const { email, password }: { email: string; password: string } = req.body;
-  const username: string = req.body.username.toLowerCase();
+interface UserRegisterRequest {
+  username: string;
+  email: string;
+  password: string;
+}
 
-  // Check if username already exists
+export const registerUser = async ({ username, email, password }: UserRegisterRequest): Promise<User> => {
   const existingUsername = await prisma.user.findUnique({
     where: { username },
   });
   if (existingUsername) {
-    res.status(400).json({ error: 'Username already exists' });
-    return;
+    throw new Error('Username already exists');
   }
 
-  // Check if email already exists
   const existingEmail = await prisma.user.findUnique({
     where: { email },
   });
   if (existingEmail) {
-    res.status(400).json({ error: 'Email already exists' });
-    return;
+    throw new Error('Email already registered');
   }
 
   const user = await prisma.user.create({
     data: {
       username,
       email,
-      password, // Use hashedPassword if you hash the password
+      password, // Hash it in production!
+      salt: 'salt', // Hash it in production!
     },
   });
 
-  res.status(201).json(user);
+  return user;
 };
 
-export const getUserById = async (req: express.Request, res: express.Response): Promise<void> => {
-  const userId: number = parseInt(req.params.id, 10);
-
-  const user = await prisma.user.findUnique({
-    where: {
-      id: userId,
-    },
-    include: {
-      messages: true,
-      directMessagesSent: true,
-      directMessagesReceived: true,
-      groupMemberships: true,
-    },
+export const getUserById = async (userId: number): Promise<User | null> => {
+  return await prisma.user.findUnique({
+    where: { id: userId },
   });
-
-  if (!user) {
-    res.status(404).json({ error: 'User not found' });
-    return;
-  }
-
-  res.status(200).json(user);
 };
 
-export const getUserByUsername = async (req: express.Request, res: express.Response): Promise<void> => {
-  const username: string = req.params.username.toLowerCase();
-
+export const getUserByUsername = async (username: string): Promise<User | null> => {
   const user = await prisma.user.findUnique({
     where: {
       username: username,
     },
-    include: {
-      messages: true,
-      directMessagesSent: true,
-      directMessagesReceived: true,
-      groupMemberships: true,
-    },
   });
 
-  if (!user) {
-    res.status(404).json({ error: 'User not found' });
-    return;
-  }
+  return user;
+};
 
-  res.status(200).json(user);
+export const isUserExistById = async (userId: number): Promise<boolean> => {
+  const user = await prisma.user.count({
+    where: { id: userId },
+  });
+  return user > 0;
+};
+
+export const isUserExistByUsername = async (username: string): Promise<boolean> => {
+  const user = await prisma.user.count({
+    where: { username: username },
+  });
+  return user > 0;
 };
