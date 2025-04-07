@@ -48,7 +48,6 @@ app.use('/api/groups', groupRoutes);
 
 // Setup Socket IO
 setupSocket(server, 'socket-messages');
-// setupDirectSocket(server, 'socket/messages');
 
 // 404 Handler & Global Error Handler
 app.use(handle404);
