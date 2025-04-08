@@ -1,6 +1,9 @@
 import * as express from 'express';
 import { prisma } from '@/database';
 import { User } from '@prisma/client';
+import bcrypt from 'bcryptjs';
+import { JWT_SECRET } from '@/env';
+import jwt from 'jsonwebtoken';
 
 interface UserRegisterRequest {
   username: string;
@@ -23,12 +26,16 @@ export const registerUser = async ({ username, email, password }: UserRegisterRe
     throw new Error('Email already registered');
   }
 
+  // Hash the password
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(password, salt);
+
   const user = await prisma.user.create({
     data: {
       username,
       email,
-      password, // Hash it in production!
-      salt: 'salt', // Hash it in production!
+      password: hashedPassword,
+      salt,
     },
   });
 
@@ -64,3 +71,13 @@ export const isUserExistByUsername = async (username: string): Promise<boolean> 
   });
   return user > 0;
 };
+
+export const getSignedJwtToken = (userId: number): string => {
+  return jwt.sign({ userId }, JWT_SECRET, {
+    expiresIn: '30d',
+  });
+}
+
+export const matchPassword = async (password: string, hashedPassword: string): Promise<boolean> => {
+  return await bcrypt.compare(password, hashedPassword);
+}
