@@ -81,7 +81,7 @@
     <div id="messages"></div>
 
     <!-- Message Input -->
-    <input type="text" id="messageInput" placeholder="Type a message" />
+    <input type="text" id="messageInput" placeholder="Type a message" oninput="toggleInputType()" /> 
     <button onclick="sendMessage()">Send</button>
   </div>
 
@@ -140,22 +140,19 @@
       // Connect to the Socket.IO server with JWT token and connection-specific data
       socket = io('http://localhost:3000', {
         auth: {
-          token: jwtToken, // Send JWT token in the connection request
-          type: connectionType, // Send the selected type
-          groupId: connectionType === 'group' ? groupId : undefined, // Send groupId if type is 'group'
-          receiverId: connectionType === 'direct' ? receiverId : undefined, // Send receiverId if type is 'direct'
+          token: jwtToken, 
+          type: connectionType,
+          groupId: connectionType === 'group' ? groupId : undefined, 
+          receiverId: connectionType === 'direct' ? receiverId : undefined, 
         },
       });
 
-      // Listen for incoming messages from the server
-      socket.on('socket-messages', (data) => {
-        console.log(data)
+      socket.on('socket-messages', (message) => {
+        console.log("Received data", message)
         const messagesDiv = document.getElementById('messages');
-        const newMessage = document.createElement('div');
-        console.log("Received message:", data);
-        newMessage.textContent = `${data.user.username}: ${data.content}`;
-        messagesDiv.appendChild(newMessage);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        const msgBox = messageBox(message);
+        messagesDiv.appendChild(msgBox);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight; 
       });
 
       // Log the connection status
@@ -166,10 +163,12 @@
         document.getElementById('connectionDetails').style.display = 'block';
       });
 
+      // Connection Error
       socket.on('connect_error', (err) => {
         console.error('Connection error:', err.message);
       });
 
+      // Disconnect Reason
       socket.on('disconnectReason', (reason) => {
         console.warn('Disconnected from server. Reason:', reason);
 
@@ -177,7 +176,7 @@
         document.getElementById('connectionDetails').style.display = 'none';
       });
 
-      // Listen for connection details (type, groupId, receiverId)
+      // Connected the connection
       socket.on('connected', async (data) => {
         console.log('Connected with data:', data);
 
@@ -186,30 +185,43 @@
         document.getElementById('nameDisplay').textContent = data.username || 'None';  
         document.getElementById('userIdDisplay').textContent = data.userId || 'None';  
 
-        // Show or hide Group ID section based on value
+        // Show or hide Group ID section
         if (data.groupId) {
-          document.getElementById('groupIdDisplay').textContent = data.groupId;
+          document.getElementById('groupIdDisplay').textContent = data.groupId + " " + data.groupName;
           document.getElementById('groupIdDisplaySection').style.display = 'block'; // Show
         } else {
           document.getElementById('groupIdDisplaySection').style.display = 'none'; // Hide
         }
 
-        // Show or hide Receiver ID section based on n
+        // Show or hide Receiver ID section
         if (data.receiverId) {
-          document.getElementById('receiverIdDisplay').textContent = data.receiverId;
+          document.getElementById('receiverIdDisplay').textContent = data.receiverId + " " + data.receiverName;
           document.getElementById('receiverIdDisplaySection').style.display = 'block'; // Show
         } else {
           document.getElementById('receiverIdDisplaySection').style.display = 'none'; // Hide
         }
-      });
+        });
 
-      hasMoreMessages = true;
-      previousScrollTop = 0;
-      lastMessageId = null; 
-      lastSendAt = null;
-      isFetching = false;
-      fetchRecentlyMessages() 
+        const  messages = await fetchMessages(true) 
+
+        messages.forEach((message) => {
+          const msgBox = messageBox(message);
+            messagesDiv.insertBefore(msgBox, messagesDiv.firstChild); 
+          } 
+        );
+
+        hasMoreMessages = true;
+        previousScrollTop = 0;
+        isFetching = false;
+        if (messages) {
+          lastMessageId = messages[messages.length - 1].id;
+          lastSendAt = messages[messages.length - 1].sentAt;
+        }
+
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
+
+    // Listen for incoming messages from the server
 
     // Function to toggle the visibility of the Group ID or Receiver ID input fields
     function toggleConnectionInputs() {
@@ -224,29 +236,8 @@
       }
     }
 
-    // Send message to server
-    function sendMessage() {
-      const messageInput = document.getElementById('messageInput');
-      const message = messageInput.value;
-      console.log("Sending message:", message);
-      if (!message) {
-        alert("Please enter a message.");
-        return;
-      }
-
-      const messageData = {
-        content: message,
-        senderId: socket.id, 
-      };
-      // Emit the message to the server
-      socket.emit('socket-messages', messageData);
-
-      // Clear the input field
-      messageInput.value = '';
-    }
-
-    // Set JWT Token when clicking on example tokens
-    function setJwtToken(exampleToken) {
+        // Set JWT Token when clicking on example tokens
+        function setJwtToken(exampleToken) {
       const tokenMap = {
         exampleToken1: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNTE2MjM5MDIyLCJ1c2VySWQiOjEsIm5hbWUiOiJKb2huIERvZSJ9.lajg-DFxWnOmUNW7Vy6OdHd42pSZihiUNgppuLrY8mc',
         exampleToken2: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNTE2MjM5MDIyLCJ1c2VySWQiOjIsIm5hbWUiOiJTaXJpd2lkIFRpbiJ9.5l0MuK4a3xNvBwSmxLucY_DtzngYShdCue0QOVnLraY',
@@ -260,89 +251,129 @@
 
     window.onload = toggleConnectionInputs;
 
-    async function fetchRecentlyMessages() {
-      try {
-        const messagesDiv = document.getElementById('messages');
-        const jwtToken = document.getElementById('jwtTokenInput').value;
-        const groupId = document.getElementById('groupIdInput').value;
-
-        const res = await fetch(`http://localhost:3000/api/groups/${groupId}/messages?limit=${pageSize}`, {
-            headers: {
-              'Authorization': `Bearer ${jwtToken}`,
-            }
-          });
-
-        if (!res.ok) throw new Error('Failed to fetch message history');
-
-        const recentlyMessages = await res.json();
-
-        console.log("Fetched recently 20 messages:", recentlyMessages);
-        recentlyMessages.forEach((data) => {
-          const msg = document.createElement('div');
-          msg.textContent = `${data.user.username}: ${data.content}`;
-          messagesDiv.insertBefore(msg, messagesDiv.firstChild); 
-        });
-        lastMessageId = recentlyMessages[recentlyMessages.length - 1].id;
-        lastSendAt = recentlyMessages[recentlyMessages.length - 1].sentAt;
-
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-
-      } catch (err) {
-        console.error("Error fetching history:", err);
-      }
-    }
-
-    async function fetchMoreMessages() {
-      if (isFetching || !hasMoreMessages) return;
-      isFetching = true;
-
-      try {
-        const messagesDiv = document.getElementById('messages');
-        const groupId = document.getElementById('groupIdInput').value;
-        const jwtToken = document.getElementById('jwtTokenInput').value;
-          if (lastMessageId === null) return; // No more messages to fetch
-        const res = await fetch(`http://localhost:3000/api/groups/${groupId}/messages?limit=${pageSize}&before=${lastSendAt}`, {
-            headers: {
-              'Authorization': `Bearer ${jwtToken}`,
-            }
-          });
-
-        if (!res.ok) throw new Error('Failed to fetch more messages');
-
-        const olderMessages = await res.json();
-        console.log("Fetched older 20 messages:", olderMessages);
-
-        if (olderMessages.length === 0) {
-          hasMoreMessages = false;
+    // Send message to server
+    async function sendMessage() {
+      const messageInput = document.getElementById('messageInput');
+      const text = messageInput.value;
+      
+      if (text) {
+        console.log("Sending text:", text);
+        
+        if (!text) {
+          alert("Please enter a text.");
           return;
         }
 
+        const messageData = {
+          content: {
+            type: "text",
+            text: text
+          },
+          senderId: socket.id, 
+        };
+        
+        // Emit the message to the server
+        socket.emit('socket-messages', messageData);
+
+        // Clear the input fields
+        messageInput.value = '';
+      } 
+      else {
+        alert("Please enter a message");
+      }
+    }
+
+    // Checking for Scroll Top
+    document.getElementById('messages').addEventListener('scroll', async function () {
+      const messagesDiv = this;
+      if (messagesDiv.scrollTop === 0 && !isFetching && hasMoreMessages) {
+
         const previousScrollHeight = messagesDiv.scrollHeight;
 
-        olderMessages.forEach((data) => {
-          const msg = document.createElement('div');
-          msg.textContent = `${data.user.username}: ${data.content}`;
-          messagesDiv.insertBefore(msg, messagesDiv.firstChild);
+        const messages = await fetchMessages(false) 
+        if (messages.length === 0) {
+          return;
+        }
+        messages.forEach((message) => {
+          const msgBox = messageBox(message);
+          messagesDiv.insertBefore(msgBox, messagesDiv.firstChild); 
+        });
+        
+          lastMessageId = messages[messages.length - 1].id;
+          lastSendAt = messages[messages.length - 1].sentAt;
+
+          messagesDiv.scrollTop = messagesDiv.scrollHeight - previousScrollHeight;
+      }
+    });
+
+    // Create a Message Box
+    function messageBox(message) {
+        const newMessage = document.createElement('div');
+        newMessage.style.display = 'flex';
+        newMessage.style.alignItems = 'center';
+        newMessage.style.marginBottom = '10px';  
+
+        const username = document.createElement('span');
+        username.style.fontWeight = 'bold';
+        username.style.marginRight = '10px'; 
+        username.textContent = `${message.user.username}:`;
+
+        const messageContent = document.createElement('span');
+        let contentText = '';
+
+        if (message.content.type === 'text') {
+            contentText = `${message.content.text}`;
+        } else {
+            contentText = 'invalid content!!';
+        }
+
+        messageContent.textContent = contentText;
+
+        newMessage.appendChild(username);
+        newMessage.appendChild(messageContent);
+
+        return newMessage;
+    }
+
+    // Fetch Messages 
+    async function fetchMessages(isInitialFetch = true) {
+      try {
+        const jwtToken = document.getElementById('jwtTokenInput').value;
+        const groupId = document.getElementById('groupIdInput').value;
+        if (!groupId) {
+          return [];
+        }
+
+        const url = isInitialFetch
+          ? `http://localhost:3000/api/groups/${groupId}/messages?limit=${pageSize}`
+          : `http://localhost:3000/api/groups/${groupId}/messages?limit=${pageSize}&before=${lastSendAt}`;
+
+        const res = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${jwtToken}`,
+          }
         });
 
-        lastMessageId = olderMessages[olderMessages.length - 1].id;
-        lastSendAt = olderMessages[olderMessages.length - 1].sentAt;
+        if (!res.ok) throw new Error(isInitialFetch ? 'Failed to fetch recent messages' : 'Failed to fetch more messages');
 
-        // Maintain scroll position after loading
-        messagesDiv.scrollTop = messagesDiv.scrollHeight - previousScrollHeight;
+        const messages = await res.json();
+
+        if (messages.length === 0 && !isInitialFetch) {
+          hasMoreMessages = false;
+          return [];
+        }
+
+        console.log(isInitialFetch ? "Fetched recently 20 messages:" : "Fetched older 20 messages:", messages);
+
+        return messages;
 
       } catch (err) {
-        console.error("Error fetching more messages:", err);
+        console.error("Error fetching messages:", err);
+        return [];
       } finally {
         isFetching = false;
       }
     }
-    document.getElementById('messages').addEventListener('scroll', async function () {
-        const messagesDiv = this;
-        if (messagesDiv.scrollTop === 0 && !isFetching && hasMoreMessages) {
-          await fetchMoreMessages();
-        }
-      });
 
   </script>
 </body>

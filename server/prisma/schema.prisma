@@ -19,14 +19,13 @@ model User {
   email     String  @unique
   password  String
   salt      String
-  groupMessages  GroupMessage[]  // Assuming GroupMessage model exists
+  groupMessages  GroupMessage[]  
   directMessagesSent     DirectMessage[] @relation("Sender")
   directMessagesReceived DirectMessage[] @relation("Receiver")
-  groupMemberships       GroupMember[]   // Assuming GroupMember model exists
+  groupMemberships       GroupMember[]  
   createdAt DateTime @default(now())
 
-  @@index([username])
-  @@index([email])
+  @@index([id, username, email])
 }
 
 model Group {
@@ -35,6 +34,8 @@ model Group {
   members   GroupMember[]
   messages  GroupMessage[]
   createdAt DateTime @default(now())
+
+  @@index([id,name])
 }
 
 model GroupMember {
@@ -47,32 +48,32 @@ model GroupMember {
 
   joinedAt DateTime @default(now())
 
-  @@id([userId, groupId])
+  @@id([groupId, userId])
+  @@index([groupId, userId])
 }
 
 model GroupMessage {
-  id        String      
   userId    Int
   groupId   Int
-  content   String
+  content   Json
   sentAt    DateTime @default(now())
 
   user      User   @relation(fields: [userId], references: [id])
   group     Group  @relation(fields: [groupId], references: [id])
 
-  @@index([groupId]) 
-  @@id ([id, sentAt])
+  @@index([groupId, sentAt, userId]) 
+  @@id([groupId, sentAt, userId])
 }
 
 model DirectMessage {
-  id        Int      @id @default(autoincrement())
   senderId  Int
   receiverId Int
-  content   String
+  content   Json
   sentAt    DateTime @default(now())
 
   sender    User   @relation("Sender", fields: [senderId], references: [id])
   receiver  User   @relation("Receiver", fields: [receiverId], references: [id])
 
-  @@index([senderId, receiverId])  
+  @@index([senderId, sentAt, receiverId])  
+  @@id ([senderId, sentAt, receiverId])
 }

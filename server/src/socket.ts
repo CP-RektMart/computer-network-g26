@@ -1,12 +1,13 @@
 import { Socket } from 'socket.io';
 import { Server } from 'socket.io';
 import { Server as HttpServer } from 'http';
-import { GroupMessage } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 
 import { JWT_SECRET, LOG_LEVEL } from '@/env';
-import { getUserById } from '@/services/users/controller';
-import { isGroupExist, isMemberOfGroup, saveGroupMessage } from '@/services/groups/controller';
+import { getUserById, isUserExistById } from '@/services/users/controller';
+import { getGroup, isGroupExist, isMemberOfGroup, saveGroupMessage } from '@/services/groups/controller';
+import { JsonObject } from '@prisma/client/runtime/library';
+import { MessageContent } from '@/type';
 // TODO: // import { saveDirectMessage } from '@/services/directs/controller'; // You need to implement this
 
 export interface ChatSocket extends Socket {
@@ -14,7 +15,9 @@ export interface ChatSocket extends Socket {
   username?: string;
   type?: string;
   groupId?: number;
+  groupName?: string;
   receiverId?: number;
+  receiverUsername?: string;
 }
 
 const setupSocket = (server: HttpServer, eventName: string): Server => {
@@ -61,16 +64,23 @@ const setupSocket = (server: HttpServer, eventName: string): Server => {
       const isMember = await isMemberOfGroup(socket.userId, parseInt(groupId));
       if (!isMember) return emitDisconnectReason(socket, 'Permission denied');
 
+      const group = await getGroup(parseInt(groupId));
       socket.type = 'group';
       socket.groupId = parseInt(groupId);
+      socket.groupName = group?.name;
       socket.join(groupFormat(socket.groupId));
     }
     // Direct
     else if (type === 'direct') {
       if (!receiverId) return emitDisconnectReason(socket, 'Receiver ID missing');
 
+      const exist = await isUserExistById(parseInt(receiverId));
+      if (!exist) return emitDisconnectReason(socket, 'Receiver not found');
+
+      const receiverUser = await getUserById(parseInt(receiverId));
       socket.type = 'direct';
       socket.receiverId = parseInt(receiverId);
+      socket.receiverUsername = receiverUser?.username;
       socket.join(directFormat(socket.userId, socket.receiverId));
     }
     // Invalid type
@@ -81,13 +91,13 @@ const setupSocket = (server: HttpServer, eventName: string): Server => {
     emitConnectionInfo(socket);
     logConnection(socket);
 
-    socket.on(eventName, (data) => {
+    socket.on(eventName, (data: MessageContent) => {
       if (!data?.content) return;
 
       if (socket.type === 'group' && socket.groupId) {
         const message = {
-          id: groupMessageUniqueId(socket.userId!, socket.groupId!),
           groupId: socket.groupId!,
+          groupName: socket.groupName!,
           userId: socket.userId!,
           content: data.content,
           sentAt: new Date(),
@@ -102,14 +112,15 @@ const setupSocket = (server: HttpServer, eventName: string): Server => {
         io.to(groupFormat(socket.groupId!)).emit(eventName, message);
       } else if (socket.type === 'direct' && socket.receiverId) {
         const message = {
-          id: directMessageUniqueId(socket.userId!, socket.receiverId!),
           senderId: socket.userId!,
           receiverId: socket.receiverId!,
+          receiverUsername: socket.receiverUsername,
           content: data.content,
           sentAt: new Date(),
         };
         // saveDirectMessage(message); // You must implement this function in your controller
         logMessage(socket, data.content, eventName);
+
         io.to(directFormat(socket.userId!, socket.receiverId!)).emit(eventName, message);
       }
     });
@@ -128,9 +139,6 @@ export const directFormat = (id1: number, id2: number): string => {
   return `direct-${lower}-${greater}`;
 };
 
-export const groupMessageUniqueId = (userId: number, groupId: number) => `${userId}-group-${groupId}`;
-export const directMessageUniqueId = (userId: number, receiverId: number) => `${userId}-direct-${receiverId}`;
-
 const emitDisconnectReason = (socket: ChatSocket, reason: string) => {
   socket.emit('disconnectReason', reason);
   socket.disconnect(true);
@@ -142,7 +150,9 @@ const emitConnectionInfo = (socket: ChatSocket) => {
     username: socket.username,
     type: socket.type,
     groupId: socket.groupId,
+    groupName: socket.groupName,
     receiverId: socket.receiverId,
+    receiverUsername: socket.receiverUsername,
   });
 };
 
@@ -154,11 +164,21 @@ const logConnection = (socket: ChatSocket) => {
   console.log(details);
 };
 
-const logMessage = (socket: ChatSocket, content: string, eventName: string) => {
+const logMessage = (socket: ChatSocket, content: JsonObject, eventName: string) => {
   if (!LOG_LEVEL) return;
-  let details = `User ID: ${socket.userId} - Message for "${eventName}": ${content}`;
-  if (socket.type === 'group') details += ` - Group ${socket.groupId}`;
-  if (socket.type === 'direct') details += ` - DM to ${directFormat(socket.userId!, socket.receiverId!)}`;
+
+  const contentString = JSON.stringify(content);
+
+  let details = `User ID: ${socket.userId} - Message for "${eventName}": ${contentString}`;
+
+  if (socket.type === 'group') {
+    details += ` - Group ${socket.groupId}`;
+  }
+
+  if (socket.type === 'direct') {
+    details += ` - DM to ${directFormat(socket.userId!, socket.receiverId!)}`;
+  }
+
   console.log(details);
 };
 
