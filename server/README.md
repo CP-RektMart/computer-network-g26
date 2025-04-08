@@ -34,4 +34,5 @@ npm run dev
 Default it will also run generate and migrate:deploy for lately
 
 ### Example group/direct Chat 
+Run **example.sql** in pgadmin
 Open file **example.html** for play with group / direct messages socket.io
