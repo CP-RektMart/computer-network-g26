@@ -118,7 +118,7 @@ export default function ChatSidebar({
       <div
         className={`${
           isMobileMenuOpen ? 'translate-x-0 pt-14' : '-translate-x-full'
-        } fixed inset-y-0 left-0 z-40 w-80 transform bg-white md:rounded-lg shadow-lg transition-transform duration-300 ease-in-out md:relative md:translate-x-0`}
+        } fixed inset-y-0 left-0 z-40 w-80 transform md:border md:border-input bg-white md:rounded-2xl transition-transform duration-300 ease-in-out md:relative md:translate-x-0`}
       >
         <div className="flex h-full flex-col">
           {/* User profile */}
@@ -296,7 +296,7 @@ export default function ChatSidebar({
             </div>
 
             <Tabs defaultValue="all" onValueChange={setChatTypeFilter}>
-              <TabsList className="w-full">
+              <TabsList className="w-full h-full p-2 rounded-full *:rounded-full *:h-9 *:data-[state=active]:text-primary">
                 <TabsTrigger value="all">All</TabsTrigger>
                 <TabsTrigger value="person">Person</TabsTrigger>
                 <TabsTrigger value="group">Group</TabsTrigger>
@@ -327,10 +327,7 @@ export default function ChatSidebar({
                         <div className="flex items-center">
                           <h3 className="font-medium">{chat.name}</h3>
                           {chat.isGroup && (
-                            <Badge
-                              variant="outline"
-                              className="ml-2 bg-gray-100 text-xs"
-                            >
+                            <Badge className="ml-2 bg-blue-100 text-blue-700 text-xs">
                               Group
                             </Badge>
                           )}
@@ -340,7 +337,7 @@ export default function ChatSidebar({
                         </p>
                       </div>
                     </div>
-                    <div className="flex flex-col items-end space-y-1">
+                    <div className="flex flex-col self-start items-end space-y-1">
                       <span className="text-xs text-gray-500">
                         {chat.timestamp}
                       </span>
