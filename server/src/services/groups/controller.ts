@@ -36,7 +36,7 @@ export const updateGroup = async (groupId: number, groupName: string, descriptio
     data: dataToUpdate,
   });
 
-  await deleteKeysByPattern(`group_${groupId}/*`);
+  await deleteKeysByPattern(`group_${groupId}`);
   return group;
 };
 
@@ -169,7 +169,8 @@ export const joinGroup = async (userId: number, groupId: number): Promise<boolea
     },
   });
 
-  await deleteKeysByPattern(`group_${groupId}/*`);
+  await redis.del(`group_${groupId}`);
+  await redis.del(`group_${groupId}/member_ids`);
 
   return true;
 };
@@ -189,7 +190,8 @@ export const leaveGroup = async (userId: number, groupId: number): Promise<void>
     },
   });
 
-  await deleteKeysByPattern(`group_${groupId}/*`);
+  await redis.del(`group_${groupId}`);
+  await redis.del(`group_${groupId}/member_ids`);
 };
 
 export const saveGroupMessage = async (message: GroupMessage) => {
