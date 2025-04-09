@@ -47,7 +47,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/groups', groupRoutes);
 
 // Setup Socket IO
-setupSocket(server, 'socket-messages');
+setupSocket(server);
 
 // 404 Handler & Global Error Handler
 app.use(handle404);

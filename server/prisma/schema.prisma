@@ -4,6 +4,7 @@
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,28 +15,42 @@ datasource db {
 }
 
 model User {
-  id        Int     @id @default(autoincrement())
-  username  String  @unique
-  email     String  @unique
-  password  String
-  salt      String
-  groupMessages  GroupMessage[]  
-  directMessagesSent     DirectMessage[] @relation("Sender")
-  directMessagesReceived DirectMessage[] @relation("Receiver")
-  groupMemberships       GroupMember[]  
-  createdAt DateTime @default(now())
+  id                       Int                 @id @default(autoincrement())
+  username                 String              @unique
+  email                    String              @unique
+  password                 String         
+  salt                     String
+  avatar                   String              @default("")
+
+  groupMessages            GroupMessage[]  
+  groupMemberships         GroupMember[]
+
+  createdAt                DateTime            @default(now())
+  lastSeenAt               DateTime            @default(now())
+  isOnline                 Boolean             @default(false)
+
+  directMessagesSent       DirectMessage[]     @relation("Sender")
+  directMessagesReceived   DirectMessage[]     @relation("Receiver")
+
+  DirectConversationSent DirectConversation[] @relation("Receiver")
+  DirectConversationReceived DirectConversation[] @relation("Sender")
 
   @@index([id, username, email])
 }
 
 model Group {
-  id        Int      @id @default(autoincrement())
+  id        Int          @id @default(autoincrement())
   name      String
+  description String    @default("")
+  avatar    String      @default("")
+
   members   GroupMember[]
   messages  GroupMessage[]
-  createdAt DateTime @default(now())
 
-  @@index([id,name])
+  createdAt DateTime     @default(now())
+  lastSendAt DateTime    @default(now())
+
+  @@index([id, name])
 }
 
 model GroupMember {
@@ -47,9 +62,10 @@ model GroupMember {
   group   Group  @relation(fields: [groupId], references: [id])
 
   joinedAt DateTime @default(now())
+  lastSeemAt DateTime @default(now())
 
-  @@id([groupId, userId])
-  @@index([groupId, userId])
+  @@id([userId, groupId])
+  @@index([userId, groupId])
 }
 
 model GroupMessage {
@@ -65,15 +81,34 @@ model GroupMessage {
   @@id([groupId, sentAt, userId])
 }
 
-model DirectMessage {
-  senderId  Int
-  receiverId Int
-  content   Json
-  sentAt    DateTime @default(now())
+model DirectConversation {
+  id           String      @id @default(uuid()) 
+  senderId     Int         
+  receiverId   Int         
+  createdAt    DateTime    @default(now())    
 
-  sender    User   @relation("Sender", fields: [senderId], references: [id])
-  receiver  User   @relation("Receiver", fields: [receiverId], references: [id])
+  sender       User        @relation("Sender", fields: [senderId], references: [id]) 
+  receiver     User        @relation("Receiver", fields: [receiverId], references: [id])
+
+  messages     DirectMessage[] 
+
+  @@unique([senderId, receiverId]) 
+}
+
+model DirectMessage {
+  id          String    
+  senderId    Int
+  receiverId  Int
+  content     Json
+  sentAt      DateTime   @default(now())
+  conversationId String
+
+  sender      User       @relation("Sender", fields: [senderId], references: [id])
+  receiver    User       @relation("Receiver", fields: [receiverId], references: [id])
+  conversation DirectConversation @relation(fields: [conversationId], references: [id])
 
   @@index([senderId, sentAt, receiverId])  
   @@id ([senderId, sentAt, receiverId])
 }
+
+

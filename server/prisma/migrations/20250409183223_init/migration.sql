@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "GroupMember" ADD COLUMN     "lastSeemAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- AlterTable
+ALTER TABLE "User" ALTER COLUMN "last_seem_at" DROP DEFAULT;
