@@ -1,20 +1,52 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Chat, Message, User } from '@/lib/types'
 import ChatSidebar from '@/components/chat/chat-sidebar'
 import ChatArea from '@/components/chat/chat-area'
-import { currentUser, initialChats, initialMessages } from '@/data/mock'
+import { initialChats, initialMessages } from '@/data/mock'
+import { useUser } from '@/context/UserContext'
 
 export const Route = createFileRoute('/chat')({
   component: RouteComponent,
 })
 
 function RouteComponent() {
+  const { user, loading, logout, updateUsername } = useUser()
   const [chats, setChats] = useState<Chat[]>(initialChats)
   const [messages, setMessages] =
     useState<Record<string, Message[]>>(initialMessages)
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
+  // Redirect if not logged in
+  useEffect(() => {
+    if (!loading && !user) {
+      window.location.href = '/login'
+    }
+  }, [user, loading])
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null // Will redirect via the useEffect
+  }
+
+  // Create a current user object from the authenticated user data
+  const currentUser: User = {
+    id: user.userId.toString(),
+    name: user.username,
+    email: user.email,
+    avatar: '/placeholder.svg?height=40&width=40',
+  }
 
   const handleSelectChat = (chat: Chat) => {
     setSelectedChat(chat)
@@ -105,14 +137,40 @@ function RouteComponent() {
     alert(`Joined group with ID: ${groupId}`)
   }
 
-  const handleUpdateName = (name: string) => {
-    if (!selectedChat) return
+  const handleUpdateName = async (name: string) => {
+    try {
+      await updateUsername(name)
 
-    setChats(
-      chats.map((chat) =>
-        chat.id === selectedChat.id ? { ...chat, name } : chat,
-      ),
-    )
+      // Update chat participants with the new username
+      if (selectedChat) {
+        setChats(
+          chats.map((chat) => {
+            // Update chat name if it's a direct chat with this user
+            const isUserChat =
+              !chat.isGroup &&
+              chat.participants.some((p) => p.id === currentUser.id)
+
+            // Update the user in the participants list
+            const updatedParticipants = chat.participants.map((p) =>
+              p.id === currentUser.id ? { ...p, name } : p,
+            )
+
+            return {
+              ...chat,
+              name: isUserChat ? name : chat.name,
+              participants: updatedParticipants,
+            }
+          }),
+        )
+      }
+    } catch (error) {
+      console.error('Failed to update username:', error)
+      alert('Failed to update username. Please try again.')
+    }
+  }
+
+  const handleLogout = async () => {
+    await logout()
   }
 
   return (
@@ -125,6 +183,7 @@ function RouteComponent() {
         onJoinGroup={handleJoinGroup}
         currentUser={currentUser}
         onUpdateName={handleUpdateName}
+        onLogout={handleLogout}
         isMobileMenuOpen={isMobileMenuOpen}
         setIsMobileMenuOpen={setIsMobileMenuOpen}
       />
