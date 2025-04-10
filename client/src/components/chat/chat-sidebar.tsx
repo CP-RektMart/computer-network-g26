@@ -24,6 +24,7 @@ interface ChatSidebarProps {
   onJoinGroup: (groupId: string) => void
   currentUser: User
   onUpdateName: (newName: string) => void
+  onLogout: () => Promise<void>
   isMobileMenuOpen: boolean
   setIsMobileMenuOpen: (open: boolean) => void
 }
@@ -36,6 +37,7 @@ export default function ChatSidebar({
   onJoinGroup,
   currentUser,
   onUpdateName,
+  onLogout,
   isMobileMenuOpen,
   setIsMobileMenuOpen,
 }: ChatSidebarProps) {
@@ -170,7 +172,12 @@ export default function ChatSidebar({
                   </div>
                 </DialogContent>
               </Dialog>
-              <Button variant="ghost" size="icon" title="Logout">
+              <Button
+                variant="ghost"
+                size="icon"
+                title="Logout"
+                onClick={onLogout}
+              >
                 <LogOut className="h-5 w-5" />
               </Button>
             </div>

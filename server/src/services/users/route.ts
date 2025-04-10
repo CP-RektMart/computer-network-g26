@@ -1,15 +1,15 @@
 import * as express from 'express';
-import { validationResult } from 'express-validator';
+import { body, validationResult } from 'express-validator';
 
-import { registerUser, getUserById, getUserByUsername, loginUser } from './controller';
+import { registerUser, getUserById, getUserByUsername, loginUser, updateUsername } from './controller';
 import { validateRegisterUser, protect } from '@/middleware/auth';
-import { getTokenResponse } from './utils';
+import { getSignedJwtToken } from './utils';
 
 const router = express.Router();
 
 /**
  * @swagger
- * api/users:
+ * /api/users:
  *   post:
  *     summary: Register a new user
  *     tags: [Users]
@@ -114,7 +114,13 @@ router.post('/login', async (req: express.Request, res: express.Response): Promi
       return;
     }
 
-    getTokenResponse(user, 200, res);
+    const token = getSignedJwtToken(user);
+
+    res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      token,
+    });
   } catch (error) {
     res.status(401).json({
       success: false,
@@ -129,7 +135,7 @@ router.post('/login', async (req: express.Request, res: express.Response): Promi
  *   post:
  *     summary: Logout the current user
  *     tags: [Users]
- *     description: Logs out the current user by clearing the authentication cookie.
+ *     description: Logs out the current user by invalidating the token.
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -150,10 +156,8 @@ router.post('/login', async (req: express.Request, res: express.Response): Promi
  *         description: Unauthorized - token is missing or invalid
  */
 router.post('/logout', protect, (req: express.Request, res: express.Response): void => {
-  res.cookie('token', '', {
-    httpOnly: true,
-    expires: new Date(Date.now() + 10 * 1000),
-  });
+  // With JWT in Authorization header, we don't need to clear cookies
+  // The client is responsible for removing the token
   res.status(200).json({
     success: true,
     message: 'Logged out successfully',
@@ -277,5 +281,70 @@ router.get('/username/:username', async (req: express.Request, res: express.Resp
 
   res.status(200).json(user);
 });
+
+/**
+ * @swagger
+ * /api/users/username:
+ *   put:
+ *     summary: Update user's username
+ *     tags: [Users]
+ *     description: Updates the authenticated user's username
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [username]
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: newusername
+ *     responses:
+ *       200:
+ *         description: Username updated successfully
+ *       400:
+ *         description: Validation error or username already exists
+ *       401:
+ *         description: Unauthorized - token is missing or invalid
+ *       404:
+ *         description: User not found
+ */
+router.put(
+  '/username',
+  protect,
+  body('username').isString().notEmpty().withMessage('Username is required'),
+  async (req: express.Request, res: express.Response): Promise<void> => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ errors: errors.array() });
+      return;
+    }
+
+    const userId: number = (req as any).userId;
+    const newUsername: string = req.body.username.toLowerCase();
+
+    try {
+      const user = await updateUsername(userId, newUsername);
+      res.status(200).json({
+        success: true,
+        message: 'Username updated successfully',
+        user: {
+          userId: user.id,
+          username: user.username,
+          email: user.email,
+        },
+      });
+    } catch (error: any) {
+      if (error.message === 'Username already exists') {
+        res.status(400).json({ success: false, message: error.message });
+      } else {
+        res.status(500).json({ success: false, message: 'Failed to update username' });
+      }
+    }
+  }
+);
 
 export default router;
