@@ -1,8 +1,9 @@
 import * as express from 'express';
-import { body } from 'express-validator';
 import { validationResult } from 'express-validator';
 
-import { registerUser, getUserById, getUserByUsername } from './controller';
+import { registerUser, getUserById, getUserByUsername, loginUser } from './controller';
+import { validateRegisterUser, protect } from '@/middleware/auth';
+import { getTokenResponse } from './utils';
 
 const router = express.Router();
 
@@ -37,26 +38,177 @@ const router = express.Router();
  *       400:
  *         description: Validation error or duplicate username/email
  */
-router.post(
-  '/',
-  body('username').isString().notEmpty().withMessage('Username is required'),
-  body('email').isEmail().withMessage('Invalid email format'),
-  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
-  async (req: express.Request, res: express.Response): Promise<void> => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      res.status(400).json({ errors: errors.array() });
+router.post('/', validateRegisterUser, async (req: express.Request, res: express.Response): Promise<void> => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    res.status(400).json({ errors: errors.array() });
+    return;
+  }
+
+  const { email, password }: { email: string; password: string } = req.body;
+  const username: string = req.body.username.toLowerCase();
+
+  const user = await registerUser(username, email, password);
+
+  res.status(201).json({ message: 'User registered successfully', user });
+});
+
+/**
+ * @swagger
+ * /api/users/login:
+ *   post:
+ *     summary: Login a user
+ *     tags: [Users]
+ *     description: Authenticates a user and returns a JWT token in a cookie.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [username, password]
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: johndoe
+ *               password:
+ *                 type: string
+ *                 example: strongpassword123
+ *     responses:
+ *       200:
+ *         description: User logged in successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 token:
+ *                   type: string
+ *                   description: JWT token
+ *       400:
+ *         description: Missing username or password
+ *       401:
+ *         description: Invalid credentials or login failure
+ */
+router.post('/login', async (req: express.Request, res: express.Response): Promise<void> => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    res.status(400).json({
+      success: false,
+      message: 'Please provide both username and password',
+    });
+    return;
+  }
+
+  try {
+    const user = await loginUser(username, password);
+    if (!user) {
+      res.status(401).json({
+        success: false,
+        message: 'Invalid username or password',
+      });
       return;
     }
 
-    const { email, password }: { email: string; password: string } = req.body;
-    const username: string = req.body.username.toLowerCase();
-
-    const user = await registerUser({ username, email, password });
-
-    res.status(201).json({ message: 'User registered successfully', user });
+    getTokenResponse(user, 200, res);
+  } catch (error) {
+    res.status(401).json({
+      success: false,
+      message: 'Login failed',
+    });
   }
-);
+});
+
+/**
+ * @swagger
+ * /api/users/logout:
+ *   post:
+ *     summary: Logout the current user
+ *     tags: [Users]
+ *     description: Logs out the current user by clearing the authentication cookie.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Logged out successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Logged out successfully
+ *       401:
+ *         description: Unauthorized - token is missing or invalid
+ */
+router.post('/logout', protect, (req: express.Request, res: express.Response): void => {
+  res.cookie('token', '', {
+    httpOnly: true,
+    expires: new Date(Date.now() + 10 * 1000),
+  });
+  res.status(200).json({
+    success: true,
+    message: 'Logged out successfully',
+  });
+});
+
+/**
+ * @swagger
+ * /api/users/me:
+ *   get:
+ *     summary: Get current authenticated user
+ *     tags: [Users]
+ *     description: Retrieves the currently authenticated user's details using the JWT token.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                   example: 1
+ *                 username:
+ *                   type: string
+ *                   example: johndoe
+ *                 email:
+ *                   type: string
+ *                   format: email
+ *                   example: johndoe@example.com
+ *       401:
+ *         description: Unauthorized - token is missing or invalid
+ *       404:
+ *         description: User not found
+ */
+router.get('/me', protect, async (req: express.Request, res: express.Response): Promise<void> => {
+  const userId: number = (req as any).userId;
+
+  if (!userId) {
+    res.status(401).json({ message: 'Unauthorized' });
+    return;
+  }
+
+  const user = await getUserById(userId);
+
+  if (!user) {
+    res.status(404).json({ message: 'User not found' });
+    return;
+  }
+
+  res.status(200).json(user);
+});
 
 /**
  * @swagger
@@ -91,7 +243,6 @@ router.get('/:id', async (req: express.Request, res: express.Response): Promise<
     res.status(404).json({ error: 'User not found' });
     return;
   }
-
   res.status(200).json(user);
 });
 
