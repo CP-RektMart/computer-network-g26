@@ -1,8 +1,9 @@
 import * as express from 'express';
 import { validationResult } from 'express-validator';
 
-import { registerUser, getUserById, getUserByUsername, loginUser, getTokenResponse } from './controller';
+import { registerUser, getUserById, getUserByUsername, loginUser } from './controller';
 import { validateRegisterUser } from '@/middleware/auth';
+import { getTokenResponse } from './utils';
 
 const router = express.Router();
 
@@ -47,7 +48,7 @@ router.post('/', validateRegisterUser, async (req: express.Request, res: express
   const { email, password }: { email: string; password: string } = req.body;
   const username: string = req.body.username.toLowerCase();
 
-  const user = await registerUser({ username, email, password });
+  const user = await registerUser(username, email, password);
 
   res.status(201).json({ message: 'User registered successfully', user });
 });

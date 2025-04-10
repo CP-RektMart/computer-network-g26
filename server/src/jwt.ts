@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import * as express from 'express';
-import { isUserExistById } from './services/users/controller';
+import { isUserExistById } from './services/users/utils';
 
 interface JwtPayload {
   userId: number;
