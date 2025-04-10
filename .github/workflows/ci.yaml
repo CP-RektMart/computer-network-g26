@@ -24,6 +24,9 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Debug directory contents
+        run: ls -la
+
       - name: Install dependencies
         run: npm ci
 
