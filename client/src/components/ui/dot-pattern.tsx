@@ -77,8 +77,9 @@ export function DotPattern({
   useEffect(() => {
     const updateDimensions = () => {
       if (containerRef.current) {
-        const { width, height } = containerRef.current.getBoundingClientRect()
-        setDimensions({ width, height })
+        const { width: rectWidth, height: rectHeight } =
+          containerRef.current.getBoundingClientRect()
+        setDimensions({ width: rectWidth, height: rectHeight })
       }
     }
 
