@@ -125,6 +125,43 @@ router.post('/login', async (req: express.Request, res: express.Response): Promi
 
 /**
  * @swagger
+ * /api/users/logout:
+ *   post:
+ *     summary: Logout the current user
+ *     tags: [Users]
+ *     description: Logs out the current user by clearing the authentication cookie.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Logged out successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Logged out successfully
+ *       401:
+ *         description: Unauthorized - token is missing or invalid
+ */
+router.post('/logout', protect, (req: express.Request, res: express.Response): void => {
+  res.cookie('token', '', {
+    httpOnly: true,
+    expires: new Date(Date.now() + 10 * 1000),
+  });
+  res.status(200).json({
+    success: true,
+    message: 'Logged out successfully',
+  });
+});
+
+/**
+ * @swagger
  * /api/users/me:
  *   get:
  *     summary: Get current authenticated user
