@@ -1,8 +1,8 @@
 import * as express from 'express';
-import { body } from 'express-validator';
 import { validationResult } from 'express-validator';
 
 import { registerUser, getUserById, getUserByUsername } from './controller';
+import { validateRegisterUser } from '@/middleware/auth';
 
 const router = express.Router();
 
@@ -37,26 +37,20 @@ const router = express.Router();
  *       400:
  *         description: Validation error or duplicate username/email
  */
-router.post(
-  '/',
-  body('username').isString().notEmpty().withMessage('Username is required'),
-  body('email').isEmail().withMessage('Invalid email format'),
-  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
-  async (req: express.Request, res: express.Response): Promise<void> => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      res.status(400).json({ errors: errors.array() });
-      return;
-    }
-
-    const { email, password }: { email: string; password: string } = req.body;
-    const username: string = req.body.username.toLowerCase();
-
-    const user = await registerUser({ username, email, password });
-
-    res.status(201).json({ message: 'User registered successfully', user });
+router.post('/', validateRegisterUser, async (req: express.Request, res: express.Response): Promise<void> => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    res.status(400).json({ errors: errors.array() });
+    return;
   }
-);
+
+  const { email, password }: { email: string; password: string } = req.body;
+  const username: string = req.body.username.toLowerCase();
+
+  const user = await registerUser({ username, email, password });
+
+  res.status(201).json({ message: 'User registered successfully', user });
+});
 
 /**
  * @swagger
@@ -91,7 +85,6 @@ router.get('/:id', async (req: express.Request, res: express.Response): Promise<
     res.status(404).json({ error: 'User not found' });
     return;
   }
-
   res.status(200).json(user);
 });
 
