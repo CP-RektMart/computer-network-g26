@@ -1,7 +1,6 @@
 import { getUserById, getUserChatGroupIds, updateUserOffline, updateUserOnline } from './controller';
-import { ChatSocket, ConnectedResDto, groupFormat, UserStatusResDto } from '@/socket-type';
+import { ChatSocket, groupFormat, UserStatusResDto } from '@/socket-type';
 import { Server } from 'socket.io';
-import { Server as HttpServer } from 'http';
 
 // Function to handle user online status when they connect
 export const handleUserOnlineStatus = async (socket: ChatSocket, io: Server) => {
@@ -9,7 +8,6 @@ export const handleUserOnlineStatus = async (socket: ChatSocket, io: Server) => 
   socket.username = user?.username;
 
   await updateUserOnline(socket.userId!);
-  // TODO: add is_online to redis
 
   const groupIds = await getUserChatGroupIds(socket.userId!);
   groupIds.forEach((groupId) => {

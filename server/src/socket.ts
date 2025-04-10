@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 
 import { JWT_SECRET, LOG_LEVEL } from '@/env';
 import { ChatSocket, ConnectedResDto } from '@/socket-type';
-import { isUserExistById } from '@/services/users/controller';
+import { getUserById, isUserExistById } from '@/services/users/controller';
 import { handleGroupJoin, handleGroupLeave, handleGroupOpen, handleMessage } from '@/services/groups/socket';
 import { handleUserOfflineStatus, handleUserOnlineStatus } from '@/services/users/socket';
 
@@ -24,7 +24,8 @@ const setupSocket = (server: HttpServer): Server => {
     logConnection(socket, 'Connected');
 
     // Emit the Connected Connection Back
-    emitConnectionInfo(socket, socket.userId!);
+    const user = await getUserById(socket.userId!)
+    emitConnectionInfo(socket, user);
 
     // Handle user online status
     await handleUserOnlineStatus(socket, io);
