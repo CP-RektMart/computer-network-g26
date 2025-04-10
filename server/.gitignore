@@ -23,9 +23,6 @@ logs/
 .DS_Store
 Thumbs.db
 
-# NPM package lock file if you don't want to include it (optional)
-package-lock.json
-
 # Coverage directory for testing
 /coverage/
 
