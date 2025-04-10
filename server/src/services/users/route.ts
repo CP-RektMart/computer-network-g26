@@ -2,7 +2,7 @@ import * as express from 'express';
 import { validationResult } from 'express-validator';
 
 import { registerUser, getUserById, getUserByUsername, loginUser } from './controller';
-import { validateRegisterUser } from '@/middleware/auth';
+import { validateRegisterUser, protect } from '@/middleware/auth';
 import { getTokenResponse } from './utils';
 
 const router = express.Router();
@@ -121,6 +121,56 @@ router.post('/login', async (req: express.Request, res: express.Response): Promi
       message: 'Login failed',
     });
   }
+});
+
+/**
+ * @swagger
+ * /api/users/me:
+ *   get:
+ *     summary: Get current authenticated user
+ *     tags: [Users]
+ *     description: Retrieves the currently authenticated user's details using the JWT token.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                   example: 1
+ *                 username:
+ *                   type: string
+ *                   example: johndoe
+ *                 email:
+ *                   type: string
+ *                   format: email
+ *                   example: johndoe@example.com
+ *       401:
+ *         description: Unauthorized - token is missing or invalid
+ *       404:
+ *         description: User not found
+ */
+router.get('/me', protect, async (req: express.Request, res: express.Response): Promise<void> => {
+  const userId: number = (req as any).userId;
+
+  if (!userId) {
+    res.status(401).json({ message: 'Unauthorized' });
+    return;
+  }
+
+  const user = await getUserById(userId);
+
+  if (!user) {
+    res.status(404).json({ message: 'User not found' });
+    return;
+  }
+
+  res.status(200).json(user);
 });
 
 /**

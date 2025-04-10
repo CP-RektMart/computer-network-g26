@@ -1,18 +1,19 @@
 import * as express from 'express';
 import { Request, Response, NextFunction } from 'express';
-import { User } from '@prisma/client';
+
+// Extend the Request interface to include userId
+declare global {
+  namespace Express {
+    interface Request {
+      userId?: string;
+    }
+  }
+}
 import { JWT_SECRET } from '@/env';
 import jwt from 'jsonwebtoken';
 import { body } from 'express-validator';
 import { validationResult } from 'express-validator';
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: number;
-    }
-  }
-}
 
 export const validateRegisterUser = [
   body('username').isString().notEmpty().withMessage('Username is required'),
@@ -42,8 +43,8 @@ export const protect = async (req: express.Request, res: express.Response, next:
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { id: number };
-    req.user = decoded.id;
+    const decoded = jwt.verify(token, JWT_SECRET) as jwt.JwtPayload;
+    req.userId = decoded.userId || undefined;
     next();
   } catch (error) {
     res.status(401).json({ success: false, message: 'Invalid token' });
