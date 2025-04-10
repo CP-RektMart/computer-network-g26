@@ -141,7 +141,7 @@ code {
 
 @layer base {
   * {
-    @apply border-border/0 outline-ring/50;
+    @apply border-input/50 outline-ring/50;
   }
   body {
     @apply bg-background text-foreground;

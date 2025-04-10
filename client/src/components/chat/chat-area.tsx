@@ -111,9 +111,9 @@ export default function ChatArea({
   }
 
   return (
-    <div className="flex flex-1 flex-col bg-white md:shadow-lg md:rounded-lg">
+    <div className="flex flex-1 flex-col bg-white md:border md:border-input md:rounded-2xl">
       {/* Chat header */}
-      <div className="flex items-center justify-between border-b p-4">
+      <div className="flex items-center justify-between border-b border-b-input p-4">
         <div className="flex items-center space-x-3">
           <Button
             variant="ghost"
@@ -148,6 +148,7 @@ export default function ChatArea({
       {/* Messages area */}
       <ScrollArea className="flex-1 p-4">
         <DotPattern
+          cr={1.5}
           className={cn(
             '[mask-image:radial-gradient(300px_circle_at_center,transparent,white)]',
             'md:[mask-image:radial-gradient(900px_circle_at_center,transparent,white)]',
@@ -268,14 +269,14 @@ export default function ChatArea({
       </ScrollArea>
 
       {/* Message input */}
-      <div className="border-t p-4">
+      <div className="border-t border-t-input p-4">
         <form onSubmit={handleSendMessage} className="flex space-x-2">
           <Textarea
             placeholder="Type a message... (Shift+Enter for new line)"
             value={messageText}
             onChange={(e) => setMessageText(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="flex-1 min-h-10 max-h-52 resize-y py-2"
+            className="flex-1 min-h-10 max-h-52 resize-y py-2 text-sm md:text-base"
             rows={1}
           />
           <Button

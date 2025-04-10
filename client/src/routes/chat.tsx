@@ -116,7 +116,7 @@ function RouteComponent() {
   }
 
   return (
-    <div className="flex h-dvh bg-gray-50 md:gap-4 md:p-4">
+    <div className="flex h-dvh bg-gray-50 md:gap-5 md:p-6">
       <ChatSidebar
         chats={chats}
         selectedChat={selectedChat}
