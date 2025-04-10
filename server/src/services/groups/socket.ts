@@ -52,7 +52,7 @@ export const handleGroupJoin = async (eventName: string, activityName: string, m
   const messageRes: gt.GroupMessageResDto = {
     status: 'ok',
     message: 'Recently Messages',
-    destination: { type: 'direct', groupId },
+    destination: { type: 'group', groupId },
     messages: messages || undefined,
   };
   socket.emit(messageName, messageRes);

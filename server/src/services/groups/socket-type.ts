@@ -33,13 +33,13 @@ export interface GroupBroadcastActivityDto {
 }
 
 export interface GroupMessageReqDto extends JsonObject, ErrorSocket {
-  destination: DestinationDto;
+  destination: GroupDestinationDto;
   timestamp: string;
   content: MessageDto;
 }
 
 export interface GroupMessageResDto extends ErrorSocket {
-  destination?: DestinationDto;
+  destination?: GroupDestinationDto;
   messages?: { userId: number; groupId: number; content: JsonValue; sentAt: Date }[];
   timestamp?: string;
 }

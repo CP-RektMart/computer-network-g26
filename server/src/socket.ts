@@ -24,7 +24,7 @@ const setupSocket = (server: HttpServer): Server => {
     logConnection(socket, 'Connected');
 
     // Emit the Connected Connection Back
-    const user = await getUserById(socket.userId!)
+    const user = await getUserById(socket.userId!);
     emitConnectionInfo(socket, user);
 
     // Handle user online status
