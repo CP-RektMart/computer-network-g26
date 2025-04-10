@@ -222,3 +222,25 @@ export const updateUserOffline = async (userId: number): Promise<void> => {
 
   await redis.set(cacheKey, JSON.stringify(false), 'EX', 3600);
 };
+
+//@desc    Update Username
+//@route   PUT /api/users/username
+//@access  Private
+export const updateUsername = async (userId: number, newUsername: string): Promise<User> => {
+  // Check if the new username already exists
+  const existingUsername = await prisma.user.findUnique({
+    where: { username: newUsername },
+  });
+
+  if (existingUsername) {
+    throw new Error('Username already exists');
+  }
+
+  // Update the username
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: { username: newUsername },
+  });
+
+  return updatedUser;
+};
