@@ -21,7 +21,7 @@ const server = http.createServer(app);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// // Enable CORS
+// Enable CORS
 app.use(
   cors({
     origin: '*',

@@ -3,7 +3,7 @@ import { body, validationResult } from 'express-validator';
 
 import { registerUser, getUserById, getUserByUsername, loginUser, updateUsername } from './controller';
 import { validateRegisterUser, protect } from '@/middleware/auth';
-import { getTokenResponse } from './utils';
+import { getSignedJwtToken } from './utils';
 
 const router = express.Router();
 
@@ -114,7 +114,13 @@ router.post('/login', async (req: express.Request, res: express.Response): Promi
       return;
     }
 
-    getTokenResponse(user, 200, res);
+    const token = getSignedJwtToken(user);
+
+    res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      token,
+    });
   } catch (error) {
     res.status(401).json({
       success: false,
@@ -129,7 +135,7 @@ router.post('/login', async (req: express.Request, res: express.Response): Promi
  *   post:
  *     summary: Logout the current user
  *     tags: [Users]
- *     description: Logs out the current user by clearing the authentication cookie.
+ *     description: Logs out the current user by invalidating the token.
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -150,10 +156,8 @@ router.post('/login', async (req: express.Request, res: express.Response): Promi
  *         description: Unauthorized - token is missing or invalid
  */
 router.post('/logout', protect, (req: express.Request, res: express.Response): void => {
-  res.cookie('token', '', {
-    httpOnly: true,
-    expires: new Date(Date.now() + 10 * 1000),
-  });
+  // With JWT in Authorization header, we don't need to clear cookies
+  // The client is responsible for removing the token
   res.status(200).json({
     success: true,
     message: 'Logged out successfully',
