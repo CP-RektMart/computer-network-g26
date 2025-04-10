@@ -1,7 +1,7 @@
 import * as express from 'express';
 import { validationResult } from 'express-validator';
 
-import { registerUser, getUserById, getUserByUsername } from './controller';
+import { registerUser, getUserById, getUserByUsername, loginUser, getTokenResponse } from './controller';
 import { validateRegisterUser } from '@/middleware/auth';
 
 const router = express.Router();
@@ -50,6 +50,76 @@ router.post('/', validateRegisterUser, async (req: express.Request, res: express
   const user = await registerUser({ username, email, password });
 
   res.status(201).json({ message: 'User registered successfully', user });
+});
+
+/**
+ * @swagger
+ * /api/users/login:
+ *   post:
+ *     summary: Login a user
+ *     tags: [Users]
+ *     description: Authenticates a user and returns a JWT token in a cookie.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [username, password]
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: johndoe
+ *               password:
+ *                 type: string
+ *                 example: strongpassword123
+ *     responses:
+ *       200:
+ *         description: User logged in successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 token:
+ *                   type: string
+ *                   description: JWT token
+ *       400:
+ *         description: Missing username or password
+ *       401:
+ *         description: Invalid credentials or login failure
+ */
+router.post('/login', async (req: express.Request, res: express.Response): Promise<void> => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    res.status(400).json({
+      success: false,
+      message: 'Please provide both username and password',
+    });
+    return;
+  }
+
+  try {
+    const user = await loginUser(username, password);
+    if (!user) {
+      res.status(401).json({
+        success: false,
+        message: 'Invalid username or password',
+      });
+      return;
+    }
+
+    getTokenResponse(user, 200, res);
+  } catch (error) {
+    res.status(401).json({
+      success: false,
+      message: 'Login failed',
+    });
+  }
 });
 
 /**
