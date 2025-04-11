@@ -1,8 +1,7 @@
 export interface User {
-  id: string
-  name: string
-  email?: string
-  avatar: string
+  id: number
+  username: string
+  email: string
 }
 
 export interface Chat {
@@ -19,7 +18,7 @@ export interface Chat {
 export interface Message {
   id: string
   chatId: string
-  senderId: string
+  senderId: number
   text: string
   timestamp: string
   isEdited: boolean

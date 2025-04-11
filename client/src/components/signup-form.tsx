@@ -72,7 +72,7 @@ export function SignupForm({
     }
 
     // Use mutation instead of direct fetch
-    signupMutation.mutate({ username, email, password })
+    await signupMutation.mutateAsync({ username, email, password })
   }
 
   // Use loading state from mutation
