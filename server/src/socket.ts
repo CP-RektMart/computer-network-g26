@@ -6,6 +6,7 @@ import { JWT_SECRET, LOG_LEVEL } from '@/env';
 import { ChatSocket, ConnectedResDto } from '@/socket-type';
 import { getUserById, isUserExistById } from '@/services/users/controller';
 import { handleGroupJoin, handleGroupLeave, handleGroupOpen, handleMessage } from '@/services/groups/socket';
+import { handleDirectJoin, handleDirectLeave, handleDirectOpen, handleDirectMessage } from '@/services/directs/socket';
 import { handleUserOfflineStatus, handleUserOnlineStatus } from '@/services/users/socket';
 
 const setupSocket = (server: HttpServer): Server => {
@@ -30,16 +31,17 @@ const setupSocket = (server: HttpServer): Server => {
     // Handle user online status
     await handleUserOnlineStatus(socket, io);
 
-    // Handle socket events
+    // Handle group socket events
     socket.on('socket-group-join', (req) => handleGroupJoin('socket-group-join', 'socket-group-activity', 'socket-group-message', socket, req));
     socket.on('socket-group-open', (req) => handleGroupOpen(socket, req));
     socket.on('socket-group-leave', (req) => handleGroupLeave('socket-group-leave', 'socket-group-activity', socket, req));
     socket.on('socket-group-message', (req) => handleMessage('socket-group-message', socket, req, io));
 
-    // TODO: socket-direct-join
-    // TODO: socket-direct-open
-    // TODO: socket-direct-leave
-    // TODO: socket-direct-message
+    // Handle direct message socket events
+    socket.on('socket-direct-join', (req) => handleDirectJoin('socket-direct-join', 'socket-direct-message', socket, io, req));
+    socket.on('socket-direct-open', (req) => handleDirectOpen(socket, req));
+    socket.on('socket-direct-leave', (req) => handleDirectLeave('socket-direct-leave', socket, req));
+    socket.on('socket-direct-message', (req) => handleDirectMessage('socket-direct-message', socket, io, req));
 
     socket.on('disconnect', async () => {
       logConnection(socket, 'Disconnected');

@@ -12,6 +12,7 @@ import setupSocket from '@/socket';
 
 import userRoutes from '@/services/users/route';
 import groupRoutes from '@/services/groups/route';
+import directMessageRoutes from '@/services/directs/route';
 
 config();
 
@@ -45,6 +46,7 @@ app.use('/health', (req: express.Request, res: express.Response) => {
 });
 app.use('/api/users', userRoutes);
 app.use('/api/groups', groupRoutes);
+app.use('/api/directs', directMessageRoutes);
 
 // Setup Socket IO
 setupSocket(server);
