@@ -3,6 +3,7 @@ import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import type { QueryClient } from '@tanstack/react-query'
 import TanstackQueryLayout from '@/integrations/tanstack-query/layout'
 import { UserProvider } from '@/context/user-context'
+import { ChatProvider } from '@/context/chat-context'
 
 interface MyRouterContext {
   queryClient: QueryClient
@@ -11,9 +12,11 @@ interface MyRouterContext {
 export const Route = createRootRouteWithContext<MyRouterContext>()({
   component: () => (
     <UserProvider>
-      <Outlet />
-      <TanStackRouterDevtools />
-      <TanstackQueryLayout />
+      <ChatProvider>
+        <Outlet />
+        <TanStackRouterDevtools />
+        <TanstackQueryLayout />
+      </ChatProvider>
     </UserProvider>
   ),
 })
