@@ -1,12 +1,7 @@
 import React, { createContext, useContext } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-
-interface User {
-  userId: number
-  username: string
-  email: string
-}
+import type { User } from '@/lib/types'
 
 interface UserContextType {
   user?: User | null
@@ -137,7 +132,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     mutationFn: loginUser,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user'] })
-      navigate({ to: '/chat' })
+      navigate({ to: '/' })
     },
   })
 
