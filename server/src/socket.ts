@@ -22,10 +22,12 @@ const setupSocket = (server: HttpServer): Server => {
 
   // ---------- Listen for incoming connections ----------
   io.on('connection', async (socket: ChatSocket) => {
+    const user = await getUserById(socket.userId!);
+    socket.username = user?.username;
+
     logConnection(socket, 'Connected');
 
     // Emit the Connected Connection Back
-    const user = await getUserById(socket.userId!);
     emitConnectionInfo(socket, user);
 
     // Handle user online status
