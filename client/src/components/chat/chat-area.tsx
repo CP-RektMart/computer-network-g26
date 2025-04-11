@@ -177,7 +177,7 @@ export default function ChatArea({
                   >
                     {!isCurrentUser && chat.isGroup && (
                       <div className="border-b border-gray-200 px-4 py-2 text-xs font-medium">
-                        {sender?.name || 'Unknown user'}
+                        {sender?.username || 'Unknown user'}
                       </div>
                     )}
 

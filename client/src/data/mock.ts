@@ -2,10 +2,9 @@ import type { Chat, Message, User } from '@/lib/types'
 
 // Mock data
 export const currentUser: User = {
-  id: 'user1',
-  name: 'John Doe',
+  id: 1,
+  username: 'John Doe',
   email: 'john@example.com',
-  avatar: '/placeholder.svg?height=40&width=40',
 }
 
 export const initialChats: Chat[] = [
@@ -19,14 +18,19 @@ export const initialChats: Chat[] = [
     unread: 2,
     participants: [
       {
-        id: 'user1',
-        name: 'John Doe',
-        avatar: '/placeholder.svg?height=40&width=40',
+        id: 1,
+        username: 'John Doe',
+        email: 'johndoe@gmail.com',
       },
       {
-        id: 'user2',
-        name: 'Jane Smith',
-        avatar: '/placeholder.svg?height=40&width=40',
+        id: 2,
+        username: 'Mike Johnson',
+        email: 'mike@gmail.com',
+      },
+      {
+        id: 4,
+        username: 'Sarah Williams',
+        email: 'sarah@gmail.com',
       },
     ],
   },
@@ -40,19 +44,19 @@ export const initialChats: Chat[] = [
     unread: 0,
     participants: [
       {
-        id: 'user1',
-        name: 'John Doe',
-        avatar: '/placeholder.svg?height=40&width=40',
+        id: 1,
+        username: 'John Doe',
+        email: 'johndoe@gmail.com',
       },
       {
-        id: 'user3',
-        name: 'Mike Johnson',
-        avatar: '/placeholder.svg?height=40&width=40',
+        id: 2,
+        username: 'Mike Johnson',
+        email: 'mike@gmail.com',
       },
       {
-        id: 'user4',
-        name: 'Sarah Williams',
-        avatar: '/placeholder.svg?height=40&width=40',
+        id: 4,
+        username: 'Sarah Williams',
+        email: 'sarah@gmail.com',
       },
     ],
   },
@@ -66,14 +70,19 @@ export const initialChats: Chat[] = [
     unread: 0,
     participants: [
       {
-        id: 'user1',
-        name: 'John Doe',
-        avatar: '/placeholder.svg?height=40&width=40',
+        id: 1,
+        username: 'John Doe',
+        email: 'johndoe@gmail.com',
       },
       {
-        id: 'user3',
-        name: 'Mike Johnson',
-        avatar: '/placeholder.svg?height=40&width=40',
+        id: 2,
+        username: 'Mike Johnson',
+        email: 'mike@gmail.com',
+      },
+      {
+        id: 4,
+        username: 'Sarah Williams',
+        email: 'sarah@gmail.com',
       },
     ],
   },
@@ -87,19 +96,19 @@ export const initialChats: Chat[] = [
     unread: 5,
     participants: [
       {
-        id: 'user1',
-        name: 'John Doe',
-        avatar: '/placeholder.svg?height=40&width=40',
+        id: 1,
+        username: 'John Doe',
+        email: 'johndoe@gmail.com',
       },
       {
-        id: 'user5',
-        name: 'Emily Davis',
-        avatar: '/placeholder.svg?height=40&width=40',
+        id: 2,
+        username: 'Mike Johnson',
+        email: 'mike@gmail.com',
       },
       {
-        id: 'user6',
-        name: 'Alex Turner',
-        avatar: '/placeholder.svg?height=40&width=40',
+        id: 4,
+        username: 'Sarah Williams',
+        email: 'sarah@gmail.com',
       },
     ],
   },
@@ -110,7 +119,7 @@ export const initialMessages: Record<string, Message[]> = {
     {
       id: 'msg1',
       chatId: 'chat1',
-      senderId: 'user2',
+      senderId: 2,
       text: 'Hey, how are you?',
       timestamp: '10:30 AM',
       isEdited: false,
@@ -118,7 +127,7 @@ export const initialMessages: Record<string, Message[]> = {
     {
       id: 'msg2',
       chatId: 'chat1',
-      senderId: 'user1',
+      senderId: 1,
       text: "I'm good, thanks! How about you?",
       timestamp: '10:32 AM',
       isEdited: false,
@@ -126,7 +135,7 @@ export const initialMessages: Record<string, Message[]> = {
     {
       id: 'msg3',
       chatId: 'chat1',
-      senderId: 'user2',
+      senderId: 2,
       text: 'Doing well! Are you free to discuss the project later today?',
       timestamp: '10:33 AM',
       isEdited: false,
@@ -136,7 +145,7 @@ export const initialMessages: Record<string, Message[]> = {
     {
       id: 'msg4',
       chatId: 'chat2',
-      senderId: 'user3',
+      senderId: 2,
       text: 'Meeting at 2 PM today, everyone',
       timestamp: '9:00 AM',
       isEdited: false,
@@ -144,7 +153,7 @@ export const initialMessages: Record<string, Message[]> = {
     {
       id: 'msg5',
       chatId: 'chat2',
-      senderId: 'user4',
+      senderId: 4,
       text: "I'll be there!",
       timestamp: '9:05 AM',
       isEdited: false,
@@ -152,7 +161,7 @@ export const initialMessages: Record<string, Message[]> = {
     {
       id: 'msg6',
       chatId: 'chat2',
-      senderId: 'user1',
+      senderId: 1,
       text: 'See you all then',
       timestamp: '9:10 AM',
       isEdited: false,
@@ -162,7 +171,7 @@ export const initialMessages: Record<string, Message[]> = {
     {
       id: 'msg7',
       chatId: 'chat3',
-      senderId: 'user3',
+      senderId: 2,
       text: 'Can you send me the files?',
       timestamp: 'Yesterday',
       isEdited: false,
@@ -170,7 +179,7 @@ export const initialMessages: Record<string, Message[]> = {
     {
       id: 'msg8',
       chatId: 'chat3',
-      senderId: 'user1',
+      senderId: 1,
       text: 'Sure, I will send them over shortly.',
       timestamp: 'Yesterday',
       isEdited: false,
@@ -180,7 +189,7 @@ export const initialMessages: Record<string, Message[]> = {
     {
       id: 'msg9',
       chatId: 'chat4',
-      senderId: 'user5',
+      senderId: 2,
       text: 'New mockups are ready for review.',
       timestamp: 'Monday',
       isEdited: false,
@@ -188,7 +197,7 @@ export const initialMessages: Record<string, Message[]> = {
     {
       id: 'msg10',
       chatId: 'chat4',
-      senderId: 'user1',
+      senderId: 1,
       text: 'Great! I will check them out.',
       timestamp: 'Monday',
       isEdited: false,

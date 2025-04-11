@@ -42,10 +42,9 @@ function RouteComponent() {
 
   // Create a current user object from the authenticated user data
   const currentUser: User = {
-    id: user.userId.toString(),
-    name: user.username,
+    id: user.id,
+    username: user.username,
     email: user.email,
-    avatar: '/placeholder.svg?height=40&width=40',
   }
 
   const handleSelectChat = (chat: Chat) => {
