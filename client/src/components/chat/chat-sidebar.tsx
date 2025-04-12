@@ -24,6 +24,7 @@ interface ChatSidebarProps {
   onJoinGroup: (groupId: string) => void
   currentUser: User
   onUpdateName: (newName: string) => void
+  onLogout: () => Promise<void>
   isMobileMenuOpen: boolean
   setIsMobileMenuOpen: (open: boolean) => void
 }
@@ -36,6 +37,7 @@ export default function ChatSidebar({
   onJoinGroup,
   currentUser,
   onUpdateName,
+  onLogout,
   isMobileMenuOpen,
   setIsMobileMenuOpen,
 }: ChatSidebarProps) {
@@ -43,28 +45,25 @@ export default function ChatSidebar({
   const [newGroupName, setNewGroupName] = useState('')
   const [groupIdToJoin, setGroupIdToJoin] = useState('')
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false)
-  const [editedName, setEditedName] = useState(currentUser.name)
+  const [editedName, setEditedName] = useState(currentUser.username)
   const [chatTypeFilter, setChatTypeFilter] = useState('all')
 
   // Mock users for group creation
   const mockUsers: User[] = [
     {
-      id: 'user2',
-      name: 'Jane Smith',
+      id: 2,
+      username: 'Jane Smith',
       email: 'jane@example.com',
-      avatar: '/placeholder.svg?height=40&width=40',
     },
     {
-      id: 'user3',
-      name: 'Mike Johnson',
+      id: 3,
+      username: 'Mike Johnson',
       email: 'mike@example.com',
-      avatar: '/placeholder.svg?height=40&width=40',
     },
     {
-      id: 'user4',
-      name: 'Sarah Williams',
+      id: 4,
+      username: 'Sarah Williams',
       email: 'sarah@example.com',
-      avatar: '/placeholder.svg?height=40&width=40',
     },
   ]
 
@@ -125,11 +124,12 @@ export default function ChatSidebar({
           <div className="flex items-center justify-between border-b p-4">
             <div className="flex items-center space-x-3">
               <Avatar>
-                <AvatarImage src={currentUser.avatar} alt={currentUser.name} />
-                <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
+                <AvatarFallback>
+                  {currentUser.username.charAt(0)}
+                </AvatarFallback>
               </Avatar>
               <div>
-                <h3 className="font-medium">{currentUser.name}</h3>
+                <h3 className="font-medium">{currentUser.username}</h3>
                 <p className="text-xs text-gray-500">{currentUser.email}</p>
               </div>
             </div>
@@ -170,7 +170,12 @@ export default function ChatSidebar({
                   </div>
                 </DialogContent>
               </Dialog>
-              <Button variant="ghost" size="icon" title="Logout">
+              <Button
+                variant="ghost"
+                size="icon"
+                title="Logout"
+                onClick={onLogout}
+              >
                 <LogOut className="h-5 w-5" />
               </Button>
             </div>
@@ -225,17 +230,13 @@ export default function ChatSidebar({
                           >
                             <div className="flex items-center space-x-3">
                               <Avatar className="h-8 w-8">
-                                <AvatarImage
-                                  src={user.avatar}
-                                  alt={user.name}
-                                />
                                 <AvatarFallback>
-                                  {user.name.charAt(0)}
+                                  {user.username.charAt(0)}
                                 </AvatarFallback>
                               </Avatar>
                               <div>
                                 <p className="text-sm font-medium">
-                                  {user.name}
+                                  {user.username}
                                 </p>
                                 <p className="text-xs text-gray-500">
                                   {user.email}
