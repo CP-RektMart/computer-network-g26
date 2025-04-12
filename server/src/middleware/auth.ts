@@ -14,7 +14,6 @@ import jwt from 'jsonwebtoken';
 import { body } from 'express-validator';
 import { validationResult } from 'express-validator';
 
-
 export const validateRegisterUser = [
   body('username').isString().notEmpty().withMessage('Username is required'),
   body('email').isEmail().withMessage('Invalid email format'),

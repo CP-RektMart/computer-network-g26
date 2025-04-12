@@ -1,27 +1,76 @@
 import { prisma } from '@/database';
-import { deleteKeysByPattern, fetchFromCacheOrDb, redis } from '@/redis';
-import { GroupMessage } from '@prisma/client';
-import { InputJsonValue } from '@prisma/client/runtime/library';
+import * as crypto from 'crypto';
+import { UserChatDetailDto } from '@/services/users/type';
+import { ChatInfoDto, ParticipantDto } from '@/services/rooms/type';
+import { getMessageRecently, getRoomType, getUnreadMessageCount, isParticipantOfRoom } from '@/services/rooms/controller';
 
-export const createGroup = async (groupName: string, description: string, ownerUserId: number, groupAvatar: string, MemberUserIds: number[]) => {
-  const newGroup = await prisma.group.create({
+// This function creates a new group chat with the specified details and participants.
+export const createGroup = async (
+  groupName: string,
+  description: string,
+  ownerUserId: number,
+  groupAvatar: string,
+  participantIds: number[]
+): Promise<UserChatDetailDto> => {
+  const uniqueId = crypto.randomBytes(8).toString('hex').slice(0, 16);
+  const newRoom = await prisma.room.create({
     data: {
-      name: groupName,
-      description: description,
-      avatar: groupAvatar,
-      members: {
-        create: MemberUserIds.map((userId) => ({
+      id: uniqueId,
+      type: 'group',
+      participants: {
+        create: participantIds.map((userId) => ({
           userId: userId,
           role: userId === ownerUserId ? 'admin' : 'member',
         })),
       },
     },
+    include: {
+      participants: {
+        include: {
+          user: true,
+        },
+      },
+    },
   });
 
-  return newGroup;
+  const newGroup = await prisma.group.create({
+    data: {
+      name: groupName,
+      description: description,
+      avatar: groupAvatar,
+      id: newRoom.id,
+    },
+  });
+
+  const mapped: ParticipantDto[] = newRoom.participants.map((p) => ({
+    id: p.userId,
+    name: p.user.name,
+    email: p.user.email,
+    avatar: p.user.avatar,
+    joinedAt: p.joinedAt,
+    joinAt: p.joinedAt,
+    role: p.role,
+    registeredAt: p.user.registeredAt,
+    lastLoginAt: p.user.lastLoginAt,
+    isOnline: p.user.isOnline,
+    isLeaved: p.isLeaved,
+  }));
+
+  return {
+    id: newGroup.id,
+    name: newGroup.name,
+    avatar: newGroup.avatar,
+    lastMessage: undefined,
+    lastSendAt: undefined,
+    createAt: newRoom.createdAt,
+    type: 'group',
+    participants: mapped,
+    unread: 0,
+  };
 };
 
-export const updateGroup = async (groupId: number, groupName: string, description: string, groupAvatar?: string) => {
+// This function updates the details of an existing group chat.
+export const updateGroup = async (groupId: string, groupName: string, description: string, groupAvatar?: string): Promise<void> => {
   const dataToUpdate: any = {
     name: groupName,
     description: description,
@@ -31,247 +80,224 @@ export const updateGroup = async (groupId: number, groupName: string, descriptio
     dataToUpdate.avatar = groupAvatar;
   }
 
-  const group = await prisma.group.update({
+  await prisma.group.update({
     where: { id: groupId },
     data: dataToUpdate,
   });
-
-  await deleteKeysByPattern(`group_${groupId}`);
-  return group;
 };
 
-export const deleteGroup = async (groupId: number) => {
-  await prisma.groupMember.deleteMany({
-    where: { groupId: groupId },
+// This function deletes a group chat and all its associated data.
+export const deleteGroup = async (groupId: string): Promise<void> => {
+  await prisma.roomParticipant.deleteMany({
+    where: { roomId: groupId },
   });
 
-  await prisma.groupMessage.deleteMany({
-    where: { groupId: groupId },
+  await prisma.message.deleteMany({
+    where: { roomId: groupId },
   });
 
   await prisma.group.delete({
     where: { id: groupId },
   });
 
-  await deleteKeysByPattern(`group_${groupId}/*`);
+  await prisma.room.delete({ where: { id: groupId } });
 };
 
-export const getGroup = async (groupId: number) => {
-  const group = await fetchFromCacheOrDb(`group_${groupId}`, async () => {
-    return await prisma.group.findUnique({
-      where: { id: groupId },
-      select: {
-        _count: {
-          select: {
-            members: true,
-          },
-        },
-        members: {
-          select: {
-            userId: true,
-            role: true,
-          },
-        },
-      },
-    });
+// Retrieves the details of a specific group chat by its ID.
+export const getGroup = async (groupId: string): Promise<ChatInfoDto | null> => {
+  const group = await prisma.group.findUnique({
+    where: { id: groupId },
   });
 
-  return group;
+  if (!group) {
+    return null;
+  }
+
+  return {
+    id: group.id,
+    name: group.name,
+    type: 'group',
+    avatar: group.avatar,
+  };
 };
 
-export const getGroupMembers = async (groupId: number) => {
-  const redisSetKey = `group_${groupId}/member_ids`;
+// Adds a user to a group if not already a participant, and returns participant details
+export const joinGroup = async (userId: number, groupId: string): Promise<[ParticipantDto | null, UserChatDetailDto | null]> => {
+  const isMember = await isParticipantOfRoom(userId, groupId);
+  if (isMember) {
+    return [null, null];
+  }
 
-  const exists = await redis.exists(redisSetKey);
-  if (!exists) {
-    const group = await prisma.group.findUnique({
-      where: { id: groupId },
-      include: {
-        members: {
-          select: { userId: true },
+  const roomType = await getRoomType(groupId);
+  if (roomType === 'direct') {
+    return [null, null]; // Cannot join a direct room
+  }
+
+  const participant = await prisma.roomParticipant.upsert({
+    where: {
+      userId_roomId: {
+        userId: userId,
+        roomId: groupId,
+      },
+    },
+    update: {
+      isLeaved: false,
+      role: 'member',
+    },
+    create: {
+      roomId: groupId,
+      userId: userId,
+      role: 'member',
+    },
+    include: {
+      user: true,
+    },
+  });
+
+  const room = await prisma.room.findUnique({
+    where: { id: groupId },
+    include: {
+      participants: {
+        include: {
+          user: true,
         },
       },
+    },
+  });
+
+  if (!room) {
+    return [null, null];
+  }
+
+  const [unreadMessageCount, lastMessage] = await Promise.all([getUnreadMessageCount(userId, room.id), getMessageRecently(room.id, 1)]);
+  const isGroup = room.type === 'group';
+
+  const group = isGroup ? await getGroup(room.id) : null;
+  const otherMember = !isGroup ? room.participants.find((m) => m.user.id !== userId) : null;
+
+  const mapped: ParticipantDto[] = room.participants.map((p) => ({
+    id: p.userId,
+    name: p.user.name,
+    email: p.user.email,
+    avatar: p.user.avatar,
+    joinedAt: p.joinedAt,
+    joinAt: p.joinedAt,
+    role: p.role,
+    registeredAt: p.user.registeredAt,
+    lastLoginAt: p.user.lastLoginAt,
+    isOnline: p.user.isOnline,
+    isLeaved: p.isLeaved,
+  }));
+
+  const userChat: UserChatDetailDto = {
+    id: room.id,
+    name: isGroup ? group?.name || 'Unknown Group' : otherMember?.user.name || 'Unknown User',
+    type: room.type as ChatInfoDto['type'],
+    avatar: isGroup ? group?.avatar || '' : otherMember?.user.avatar || '',
+    createAt: room.createdAt,
+    lastMessage: lastMessage[0],
+    lastSendAt: room.lastSendAt ?? undefined,
+    participants: mapped,
+    unread: unreadMessageCount,
+  };
+
+  return [
+    {
+      id: participant.userId,
+      avatar: participant.user.avatar,
+      email: participant.user.email,
+      joinAt: participant.joinedAt,
+      lastLoginAt: participant.user.lastLoginAt,
+      name: participant.user.name,
+      registeredAt: participant.user.registeredAt,
+      role: participant.role,
+      isOnline: participant.user.isOnline,
+      isLeaved: participant.isLeaved,
+    },
+    userChat,
+  ];
+};
+
+// Removes a user from a group
+export const leaveGroup = async (userId: number, groupId: string): Promise<ParticipantDto | null> => {
+  let newAdmin: ParticipantDto | null = null;
+  const roomType = await getRoomType(groupId);
+  if (roomType === 'direct') {
+    return null; // Cannot join a direct room
+  }
+
+  const participant = await prisma.roomParticipant.findUnique({
+    where: {
+      userId_roomId: {
+        userId: userId,
+        roomId: groupId,
+      },
+    },
+  });
+
+  if (!participant) {
+    return null; // User is not a participant of the room
+  }
+
+  if (participant.isLeaved) {
+    return null; // User has already left the room
+  }
+
+  if (participant.role === 'admin') {
+    // If the user is an admin, we need to assign the admin role to another participant
+    const otherParticipants = await prisma.roomParticipant.findMany({
+      where: {
+        roomId: groupId,
+        userId: { not: userId },
+      },
     });
-
-    const userIds = group?.members.map((m) => m.userId.toString()) || [];
-
-    if (userIds.length > 0) {
-      await redis.sadd(redisSetKey, ...userIds);
-      await redis.expire(redisSetKey, 1800);
+    if (otherParticipants.length > 0) {
+      const participant = await prisma.roomParticipant.update({
+        where: {
+          userId_roomId: {
+            userId: otherParticipants[0].userId,
+            roomId: groupId,
+          },
+          isLeaved: false,
+        },
+        data: {
+          role: 'admin',
+        },
+        include: {
+          user: true,
+        },
+      });
+      newAdmin = {
+        id: participant.user.id,
+        email: participant.user.email,
+        avatar: participant.user.avatar,
+        name: participant.user.name,
+        registeredAt: participant.user.registeredAt,
+        lastLoginAt: participant.user.lastLoginAt,
+        role: participant.role,
+        isOnline: participant.user.isOnline,
+        isLeaved: participant.isLeaved,
+        joinAt: participant.joinedAt,
+      };
+    } else {
+      deleteGroup(groupId); // If no other participants, delete the group
+      return null;
     }
   }
 
-  const fullMembers = await prisma.group.findUnique({
+  await prisma.room.update({
     where: { id: groupId },
-    include: {
-      members: {
-        include: {
-          user: {
-            select: {
-              id: true,
-              username: true,
-              isOnline: true,
-              lastSeenAt: true,
-            },
+    data: {
+      participants: {
+        update: {
+          where: { userId_roomId: { userId, roomId: groupId } },
+          data: {
+            isLeaved: true,
           },
         },
       },
     },
   });
 
-  return fullMembers?.members || [];
-};
-
-export const isGroupExist = async (groupId: number): Promise<boolean> => {
-  return fetchFromCacheOrDb(`group_${groupId}/exist`, async () => {
-    const groupCount = await prisma.group.count({ where: { id: groupId } });
-    return groupCount > 0;
-  });
-};
-
-export const isMemberOfGroup = async (userId: number, groupId: number): Promise<boolean> => {
-  const redisSetKey = `group_${groupId}/member_ids`;
-
-  const isCached = await redis.exists(redisSetKey);
-  if (isCached) {
-    return (await redis.sismember(redisSetKey, userId.toString())) === 1;
-  }
-
-  const group = await prisma.group.findUnique({
-    where: { id: groupId },
-    include: {
-      members: {
-        select: { userId: true },
-      },
-    },
-  });
-
-  const userIds = group?.members.map((m) => m.userId.toString()) || [];
-
-  if (userIds.length > 0) {
-    await redis.sadd(redisSetKey, ...userIds);
-    await redis.expire(redisSetKey, 1800);
-  }
-
-  return userIds.includes(userId.toString());
-};
-
-export const joinGroup = async (userId: number, groupId: number): Promise<boolean> => {
-  const isMember = await isMemberOfGroup(userId, groupId);
-  if (isMember) return false;
-
-  await prisma.group.update({
-    where: { id: groupId },
-    data: {
-      members: {
-        create: { userId },
-      },
-    },
-  });
-
-  await redis.del(`group_${groupId}`);
-  await redis.del(`group_${groupId}/member_ids`);
-
-  return true;
-};
-
-export const leaveGroup = async (userId: number, groupId: number): Promise<void> => {
-  await prisma.group.update({
-    where: { id: groupId },
-    data: {
-      members: {
-        delete: {
-          userId_groupId: {
-            userId,
-            groupId,
-          },
-        },
-      },
-    },
-  });
-
-  await redis.del(`group_${groupId}`);
-  await redis.del(`group_${groupId}/member_ids`);
-};
-
-export const saveGroupMessage = async (message: GroupMessage) => {
-  await prisma.groupMessage.create({
-    data: {
-      content: message.content as InputJsonValue,
-      groupId: message.groupId,
-      userId: message.userId,
-      sentAt: message.sentAt,
-    },
-  });
-
-  await deleteKeysByPattern(`group_${message.groupId}/messages/*`);
-};
-
-export const getGroupMessagesBefore = async (groupId: number, limit: number, before: Date): Promise<GroupMessage[] | null> => {
-  const cacheKey = `group_${groupId}/messages/before/${before.getTime()}_${limit}`;
-
-  const messages = await fetchFromCacheOrDb<GroupMessage[]>(cacheKey, async () => {
-    return prisma.groupMessage.findMany({
-      where: {
-        groupId: groupId,
-        sentAt: {
-          lt: before,
-        },
-      },
-      take: limit,
-      orderBy: {
-        sentAt: 'asc',
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-          },
-        },
-      },
-    });
-  });
-
-  return messages;
-};
-
-export const getGroupMessagesRecently = async (groupId: number, limit: number): Promise<GroupMessage[] | null> => {
-  const cacheKey = `group_${groupId}/messages/recently/${limit}`;
-
-  const messages = await fetchFromCacheOrDb<GroupMessage[]>(cacheKey, async () => {
-    return prisma.groupMessage.findMany({
-      where: {
-        groupId: groupId,
-      },
-      take: limit,
-      orderBy: {
-        sentAt: 'asc',
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-          },
-        },
-      },
-    });
-  });
-
-  return messages;
-};
-
-export const updateLastSeenInGroup = async (userId: number, groupId: number) => {
-  await prisma.groupMember.update({
-    where: {
-      userId_groupId: {
-        userId: userId,
-        groupId: groupId,
-      },
-    },
-    data: {
-      lastSeemAt: new Date(),
-    },
-  });
+  return newAdmin;
 };

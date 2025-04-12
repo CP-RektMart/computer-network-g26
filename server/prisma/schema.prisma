@@ -16,99 +16,70 @@ datasource db {
 
 model User {
   id                       Int                 @id @default(autoincrement())
-  username                 String              @unique
+  name                     String              @unique
   email                    String              @unique
   password                 String         
   salt                     String
   avatar                   String              @default("")
 
-  groupMessages            GroupMessage[]  
-  groupMemberships         GroupMember[]
-
-  createdAt                DateTime            @default(now())
-  lastSeenAt               DateTime            @default(now())
+  registeredAt             DateTime            @default(now())
+  lastLoginAt                DateTime            @default(now())
   isOnline                 Boolean             @default(false)
 
-  directMessagesSent       DirectMessage[]     @relation("Sender")
-  directMessagesReceived   DirectMessage[]     @relation("Receiver")
+  roomParticipant  RoomParticipant[]  
+  messages     Message[]
 
-  DirectConversationSent DirectConversation[] @relation("Receiver")
-  DirectConversationReceived DirectConversation[] @relation("Sender")
-
-  @@index([id, username, email])
+  @@index([id, name, email])
 }
 
 model Group {
-  id        Int          @id @default(autoincrement())
-  name      String
-  description String    @default("")
-  avatar    String      @default("")
+  id          String   @id @default(uuid())
+  name        String
+  description String   @default("")
+  avatar      String   @default("")
 
-  members   GroupMember[]
-  messages  GroupMessage[]
+  room        Room     @relation(fields: [id], references: [id], onDelete: Cascade)
 
-  createdAt DateTime     @default(now())
-  lastSendAt DateTime    @default(now())
-
-  @@index([id, name])
+  @@index([id])
 }
 
-model GroupMember {
-  userId  Int
-  groupId Int
-  role    String  @default("member") // 'admin', 'moderator', 'member'
+model Room {
+  id      String        @id @default(uuid())
+  createdAt   DateTime      @default(now())
+  lastSendAt  DateTime?      
+  type        String
 
-  user    User   @relation(fields: [userId], references: [id])
-  group   Group  @relation(fields: [groupId], references: [id])
-
-  joinedAt DateTime @default(now())
-  lastSeemAt DateTime @default(now())
-
-  @@id([userId, groupId])
-  @@index([userId, groupId])
+  group       Group?
+  participants     RoomParticipant[]
+  messages    Message[]
 }
 
-model GroupMessage {
-  userId    Int
-  groupId   Int
-  content   Json
-  sentAt    DateTime @default(now())
+model RoomParticipant {
+  userId     Int
+  roomId     String
+  role       String     @default("member") // 'admin', 'moderator', 'member'
 
-  user      User   @relation(fields: [userId], references: [id])
-  group     Group  @relation(fields: [groupId], references: [id])
+  user       User       @relation(fields: [userId], references: [id])
+  room       Room       @relation(fields: [roomId], references: [id])
 
-  @@index([groupId, sentAt, userId]) 
-  @@id([groupId, sentAt, userId])
+  joinedAt   DateTime   @default(now())
+  lastSeemAt  DateTime? 
+  isLeaved    Boolean   @default(false)
+
+  @@id([userId, roomId])
+  @@index([userId, roomId])
 }
 
-model DirectConversation {
-  id           String      @id @default(uuid()) 
-  senderId     Int         
-  receiverId   Int         
-  createdAt    DateTime    @default(now())    
+model Message {
+  id       String
+  senderId   Int
+  roomId   String
+  content  Json
+  sentAt   DateTime  @default(now())
 
-  sender       User        @relation("Sender", fields: [senderId], references: [id]) 
-  receiver     User        @relation("Receiver", fields: [receiverId], references: [id])
+  user     User      @relation(fields: [senderId], references: [id])
+  room     Room      @relation(fields: [roomId], references: [id])
 
-  messages     DirectMessage[] 
-
-  @@unique([senderId, receiverId]) 
+  @@index([roomId, sentAt, senderId]) 
+  @@id([roomId, sentAt, senderId])
 }
-
-model DirectMessage {
-  id          String    
-  senderId    Int
-  receiverId  Int
-  content     Json
-  sentAt      DateTime   @default(now())
-  conversationId String
-
-  sender      User       @relation("Sender", fields: [senderId], references: [id])
-  receiver    User       @relation("Receiver", fields: [receiverId], references: [id])
-  conversation DirectConversation @relation(fields: [conversationId], references: [id])
-
-  @@index([senderId, sentAt, receiverId])  
-  @@id ([senderId, sentAt, receiverId])
-}
-
-
