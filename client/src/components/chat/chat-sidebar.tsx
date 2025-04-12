@@ -1,5 +1,15 @@
 import { useState } from 'react'
-import { Edit2, LogOut, Menu, Search, UserPlus, Users, X } from 'lucide-react'
+import {
+  Edit2,
+  LogOut,
+  Menu,
+  Plus,
+  Search,
+  UserPlus,
+  Users,
+  X,
+} from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import type { User } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import {
@@ -27,34 +37,30 @@ export default function ChatSidebar({
   isMobileMenuOpen,
   setIsMobileMenuOpen,
 }: ChatSidebarProps) {
-  const { user, updateUsername, logout } = useUser()
+  const { user: currentUser, updateUsername, logout } = useUser()
   const { chats, selectedChat, selectChat } = useChat()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [newGroupName, setNewGroupName] = useState('')
   const [groupIdToJoin, setGroupIdToJoin] = useState('')
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false)
-  const [editedName, setEditedName] = useState(user?.username || '')
+  const [editedName, setEditedName] = useState(currentUser?.username || '')
   const [chatTypeFilter, setChatTypeFilter] = useState('all')
 
-  // Mock users for group creation
-  const mockUsers: User[] = [
-    {
-      id: 2,
-      username: 'Jane Smith',
-      email: 'jane@example.com',
-    },
-    {
-      id: 3,
-      username: 'Mike Johnson',
-      email: 'mike@example.com',
-    },
-    {
-      id: 4,
-      username: 'Sarah Williams',
-      email: 'sarah@example.com',
-    },
-  ]
+  const fetchUsers = async (): Promise<User[]> => {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+      },
+    })
+    const data = await response.json()
+    return data
+  }
+
+  const { data: users } = useQuery({
+    queryKey: ['users'],
+    queryFn: fetchUsers,
+  })
 
   const [selectedUsers, setSelectedUsers] = useState<User[]>([])
 
@@ -82,7 +88,7 @@ export default function ChatSidebar({
   }
 
   const handleUpdateUsername = async () => {
-    if (editedName.trim() && editedName !== user?.username) {
+    if (editedName.trim() && editedName !== currentUser?.username) {
       await updateUsername(editedName)
       setIsEditProfileOpen(false)
     }
@@ -125,12 +131,12 @@ export default function ChatSidebar({
             <div className="flex items-center space-x-3">
               <Avatar>
                 <AvatarFallback>
-                  {user?.username ? user.username.charAt(0) : '?'}
+                  {currentUser?.username ? currentUser.username.charAt(0) : '?'}
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h3 className="font-medium">{user?.username}</h3>
-                <p className="text-xs text-gray-500">{user?.email}</p>
+                <h3 className="font-medium">{currentUser?.username}</h3>
+                <p className="text-xs text-gray-500">{currentUser?.email}</p>
               </div>
             </div>
             <div className="flex items-center">
@@ -161,7 +167,8 @@ export default function ChatSidebar({
                       className="w-full"
                       onClick={handleUpdateUsername}
                       disabled={
-                        !editedName.trim() || editedName === user?.username
+                        !editedName.trim() ||
+                        editedName === currentUser?.username
                       }
                     >
                       Save
@@ -182,14 +189,61 @@ export default function ChatSidebar({
 
           {/* Search and actions */}
           <div className="border-b p-4">
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search conversations..."
-                className="pl-9"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search conversations..."
+                  className="pl-9"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Contacts</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="max-h-60 space-y-2 overflow-y-auto rounded-md border p-2">
+                      {users
+                        ?.filter(
+                          (user) =>
+                            currentUser &&
+                            user.username !== currentUser.username,
+                        )
+                        .map((user) => (
+                          <div
+                            key={user.id}
+                            className="flex items-center justify-between rounded-md p-2 hover:bg-gray-100"
+                          >
+                            <div className="flex items-center space-x-3">
+                              <Avatar className="h-8 w-8">
+                                <AvatarFallback>
+                                  {user.username.charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="text-sm font-medium">
+                                  {user.username}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {user.email}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
 
             <div className="flex space-x-2 mb-4">
@@ -217,38 +271,42 @@ export default function ChatSidebar({
                     <div className="space-y-2">
                       <Label>Select Participants</Label>
                       <div className="max-h-60 space-y-2 overflow-y-auto rounded-md border p-2">
-                        {mockUsers.map((mockUser) => (
-                          <div
-                            key={mockUser.id}
-                            className={`flex cursor-pointer items-center justify-between rounded-md p-2 ${
-                              selectedUsers.some((u) => u.id === mockUser.id)
-                                ? 'bg-gray-100'
-                                : ''
-                            }`}
-                            onClick={() => toggleUserSelection(mockUser)}
-                          >
-                            <div className="flex items-center space-x-3">
-                              <Avatar className="h-8 w-8">
-                                <AvatarFallback>
-                                  {mockUser.username.charAt(0)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <p className="text-sm font-medium">
-                                  {mockUser.username}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {mockUser.email}
-                                </p>
+                        {users
+                          ?.filter(
+                            (user) =>
+                              currentUser &&
+                              user.username !== currentUser.username,
+                          )
+                          .map((user) => (
+                            <div
+                              key={user.id}
+                              className={`flex cursor-pointer items-center justify-between rounded-md p-2 ${
+                                selectedUsers.some((u) => u.id === user.id)
+                                  ? 'bg-gray-100'
+                                  : ''
+                              }`}
+                              onClick={() => toggleUserSelection(user)}
+                            >
+                              <div className="flex items-center space-x-3">
+                                <Avatar className="h-8 w-8">
+                                  <AvatarFallback>
+                                    {user.username.charAt(0)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <p className="text-sm font-medium">
+                                    {user.username}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    {user.email}
+                                  </p>
+                                </div>
                               </div>
+                              {selectedUsers.some((u) => u.id === user.id) && (
+                                <div className="h-4 w-4 rounded-full bg-primary"></div>
+                              )}
                             </div>
-                            {selectedUsers.some(
-                              (u) => u.id === mockUser.id,
-                            ) && (
-                              <div className="h-4 w-4 rounded-full bg-primary"></div>
-                            )}
-                          </div>
-                        ))}
+                          ))}
                       </div>
                     </div>
                     <Button
