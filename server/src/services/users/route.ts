@@ -1,7 +1,7 @@
 import * as express from 'express';
 import { body, validationResult } from 'express-validator';
 
-import { registerUser, getUserById, getUserByUsername, loginUser, updateUsername } from './controller';
+import { registerUser, getUserById, getUserByUsername, loginUser, updateUsername, getUsers } from './controller';
 import { validateRegisterUser, protect } from '@/middleware/auth';
 import { getSignedJwtToken } from './utils';
 
@@ -51,6 +51,32 @@ router.post('/', validateRegisterUser, async (req: express.Request, res: express
   const user = await registerUser(username, email, password);
 
   res.status(201).json({ message: 'User registered successfully', user });
+});
+
+/**
+ * @swagger
+ * /api/users:
+ *   get:
+ *     summary: Get all users
+ *     tags: [Users]
+ *     description: Retrieves a list of all users.
+ *     responses:
+ *       200:
+ *         description: List of users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ */
+router.get('/', protect, async (req: express.Request, res: express.Response): Promise<void> => {
+  const users = await getUsers();
+  if (!users) {
+    res.status(404).json({ message: 'No users found' });
+    return;
+  }
+  res.status(200).json(users);
 });
 
 /**
@@ -197,7 +223,7 @@ router.post('/logout', protect, (req: express.Request, res: express.Response): v
  *         description: User not found
  */
 router.get('/me', protect, async (req: express.Request, res: express.Response): Promise<void> => {
-  const userId: number = (req as any).userId;
+  const userId = req.userId;
 
   if (!userId) {
     res.status(401).json({ message: 'Unauthorized' });

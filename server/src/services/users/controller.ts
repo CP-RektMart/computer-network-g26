@@ -244,3 +244,20 @@ export const updateUsername = async (userId: number, newUsername: string): Promi
 
   return updatedUser;
 };
+
+//@desc    Get Users
+//@route   GET /api/users
+//@access  Private
+export const getUsers = async () => {
+  const users = await prisma.user.findMany({
+    select: {
+      id: true,
+      username: true,
+      email: true,
+      avatar: true,
+      isOnline: true,
+    },
+  });
+
+  return users;
+};
