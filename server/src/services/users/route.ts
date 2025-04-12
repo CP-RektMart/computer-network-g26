@@ -1,7 +1,7 @@
 import * as express from 'express';
 import { validationResult } from 'express-validator';
 
-import { registerUser, getUserById, getUserByUsername, loginUser } from './controller';
+import { registerUser, getUserById, getUserByName, loginUser, getChat } from './controller';
 import { validateRegisterUser, protect } from '@/middleware/auth';
 import { getTokenResponse } from './utils';
 
@@ -53,6 +53,7 @@ router.post('/', validateRegisterUser, async (req: express.Request, res: express
   res.status(201).json({ message: 'User registered successfully', user });
 });
 
+// TODO: fix swagger
 /**
  * @swagger
  * /api/users/login:
@@ -123,6 +124,7 @@ router.post('/login', async (req: express.Request, res: express.Response): Promi
   }
 });
 
+// TODO: fix swagger
 /**
  * @swagger
  * /api/users/logout:
@@ -160,6 +162,7 @@ router.post('/logout', protect, (req: express.Request, res: express.Response): v
   });
 });
 
+// TODO: fix swagger
 /**
  * @swagger
  * /api/users/me:
@@ -201,15 +204,17 @@ router.get('/me', protect, async (req: express.Request, res: express.Response): 
   }
 
   const user = await getUserById(userId);
+  const chats = await getChat(userId);
 
   if (!user) {
     res.status(404).json({ message: 'User not found' });
     return;
   }
 
-  res.status(200).json(user);
+  res.status(200).json({ user, chats });
 });
 
+// TODO: fix swagger
 /**
  * @swagger
  * /api/users/{id}:
@@ -246,6 +251,7 @@ router.get('/:id', async (req: express.Request, res: express.Response): Promise<
   res.status(200).json(user);
 });
 
+// TODO: fix swagger
 /**
  * @swagger
  * /api/users/username/{username}:
@@ -268,7 +274,7 @@ router.get('/:id', async (req: express.Request, res: express.Response): Promise<
  */
 router.get('/username/:username', async (req: express.Request, res: express.Response): Promise<void> => {
   const username: string = req.params.username.toLowerCase();
-  const user = await getUserByUsername(username);
+  const user = await getUserByName(username);
 
   if (!user) {
     res.status(404).json({ error: 'User not found' });
@@ -279,3 +285,5 @@ router.get('/username/:username', async (req: express.Request, res: express.Resp
 });
 
 export default router;
+
+//TODO: PATCH route for updating user info and broadcast to all participants (socket-room-participant-update RoomActivityDto)
