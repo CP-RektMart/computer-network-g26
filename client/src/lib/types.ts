@@ -1,25 +1,35 @@
 export interface User {
   id: number
   username: string
-  email: string
+  email?: string
+  avatar?: string
+  isOnline?: boolean
 }
 
 export interface Chat {
   id: string
   name: string
   isGroup: boolean
-  lastMessage: string
-  timestamp: string
-  avatar: string
-  unread: number
+  avatar?: string
   participants: User[]
+  lastMessage?: string
+  timestamp?: string
+  unread?: number
 }
 
 export interface Message {
   id: string
-  chatId: string
+  conversationId: string
   senderId: number
-  text: string
-  timestamp: string
-  isEdited: boolean
+  receiverId: number
+  content: string
+  sentAt: Date
+  sender?: User
+}
+
+export interface DirectConversation {
+  id: string
+  otherUser: User
+  lastMessage?: Message
+  createdAt: Date
 }

@@ -1,49 +1,42 @@
 import { useEffect, useRef, useState } from 'react'
 import { Edit, Menu, MoreVertical, Send, Trash2 } from 'lucide-react'
-import type React from 'react'
-
-import type { Chat, Message, User } from '@/lib/types'
-import { DotPattern } from '@/components/ui/dot-pattern'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import type { Message } from '@/lib/types'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { DotPattern } from '@/components/ui/dot-pattern'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Badge } from '@/components/ui/badge'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
+import { useChat } from '@/context/chat-context'
+import { useUser } from '@/context/user-context'
 
 interface ChatAreaProps {
-  chat: Chat | null
-  messages: Message[]
-  currentUser: User
-  onSendMessage: (text: string) => void
-  onEditMessage: (messageId: string, newText: string) => void
-  onDeleteMessage: (messageId: string) => void
   setIsMobileMenuOpen: (open: boolean) => void
 }
 
-export default function ChatArea({
-  chat,
-  messages,
-  currentUser,
-  onSendMessage,
-  onEditMessage,
-  onDeleteMessage,
-  setIsMobileMenuOpen,
-}: ChatAreaProps) {
+export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
+  const { user } = useUser()
+  const { selectedChat, messages, sendMessage } = useChat()
   const [messageText, setMessageText] = useState('')
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
+  const currentChatMessages = selectedChat ? messages[selectedChat.id] : []
+  console.log('currentChatMessages', currentChatMessages)
+  console.log('selectedChat', selectedChat)
+  console.log('messages', messages)
+
   useEffect(() => {
     scrollToBottom()
-  }, [messages])
+  }, [currentChatMessages])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -52,19 +45,21 @@ export default function ChatArea({
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault()
     if (messageText.trim()) {
-      onSendMessage(messageText)
+      sendMessage(messageText)
       setMessageText('')
     }
   }
 
   const startEditMessage = (message: Message) => {
     setEditingMessageId(message.id)
-    setEditText(message.text)
+    setEditText(message.content)
   }
 
   const saveEditMessage = () => {
     if (editingMessageId && editText.trim()) {
-      onEditMessage(editingMessageId, editText)
+      // This would call the API to edit the message
+      // For now, just update the local state
+      console.log('Edit message:', editingMessageId, editText)
       setEditingMessageId(null)
       setEditText('')
     }
@@ -73,6 +68,12 @@ export default function ChatArea({
   const cancelEditMessage = () => {
     setEditingMessageId(null)
     setEditText('')
+  }
+
+  const handleDeleteMessage = (messageId: string) => {
+    // This would call the API to delete the message
+    // For now, just log it
+    console.log('Delete message:', messageId)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -88,7 +89,7 @@ export default function ChatArea({
     }
   }
 
-  if (!chat) {
+  if (!selectedChat) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center bg-gray-50 p-4">
         <div className="text-center">
@@ -124,22 +125,22 @@ export default function ChatArea({
             <Menu className="h-5 w-5" />
           </Button>
           <Avatar>
-            <AvatarImage src={chat.avatar} alt={chat.name} />
-            <AvatarFallback>{chat.name.charAt(0)}</AvatarFallback>
+            <AvatarImage src={selectedChat.avatar} alt={selectedChat.name} />
+            <AvatarFallback>{selectedChat.name.charAt(0)}</AvatarFallback>
           </Avatar>
           <div>
             <div className="flex items-center">
-              <h3 className="font-medium">{chat.name}</h3>
-              {chat.isGroup && (
+              <h3 className="font-medium">{selectedChat.name}</h3>
+              {selectedChat.isGroup && (
                 <Badge variant="outline" className="ml-2 bg-gray-100 text-xs">
-                  Group • {chat.participants.length} members
+                  Group • {selectedChat.participants.length} members
                 </Badge>
               )}
             </div>
             <p className="text-xs text-gray-500">
-              {chat.isGroup
-                ? `${chat.participants.length} participants`
-                : 'Online'}
+              {selectedChat.isGroup
+                ? `${selectedChat.participants.length} participants`
+                : 'Direct message'}
             </p>
           </div>
         </div>
@@ -156,10 +157,10 @@ export default function ChatArea({
           )}
         />
         <div className="relative space-y-4">
-          {messages.length > 0 ? (
-            messages.map((message) => {
-              const isCurrentUser = message.senderId === currentUser.id
-              const sender = chat.participants.find(
+          {currentChatMessages.length > 0 ? (
+            currentChatMessages.map((message) => {
+              const isCurrentUser = message.senderId === user?.id
+              const sender = selectedChat.participants.find(
                 (p) => p.id === message.senderId,
               )
 
@@ -175,7 +176,7 @@ export default function ChatArea({
                         : 'rounded-lg bg-gray-100 text-gray-900'
                     } overflow-hidden`}
                   >
-                    {!isCurrentUser && chat.isGroup && (
+                    {!isCurrentUser && selectedChat.isGroup && (
                       <div className="border-b border-gray-200 px-4 py-2 text-xs font-medium">
                         {sender?.username || 'Unknown user'}
                       </div>
@@ -194,16 +195,16 @@ export default function ChatArea({
                           />
                           <div className="flex justify-end space-x-2">
                             <Button
+                              variant="outline"
                               size="sm"
-                              variant="ghost"
                               onClick={cancelEditMessage}
                             >
                               Cancel
                             </Button>
                             <Button
                               size="sm"
-                              variant="ghost"
                               onClick={saveEditMessage}
+                              disabled={!editText.trim()}
                             >
                               Save
                             </Button>
@@ -212,15 +213,24 @@ export default function ChatArea({
                       ) : (
                         <div>
                           <p className="whitespace-pre-wrap break-words">
-                            {message.text}
+                            {message.content}
                           </p>
-                          <div
-                            className={`mt-1 flex items-center justify-between text-xs ${
-                              isCurrentUser ? 'text-gray-300' : 'text-gray-500'
-                            }`}
-                          >
-                            <span>{message.timestamp}</span>
-                            {message.isEdited && <span>(edited)</span>}
+                          <div className="mt-1 flex items-center justify-end space-x-2">
+                            <span
+                              className={`text-xs ${isCurrentUser ? 'text-gray-300' : 'text-gray-500'}`}
+                            >
+                              {message.sentAt.toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                            {message.isEdited && (
+                              <span
+                                className={`text-xs ${isCurrentUser ? 'text-gray-300' : 'text-gray-500'}`}
+                              >
+                                (edited)
+                              </span>
+                            )}
                           </div>
                         </div>
                       )}
@@ -247,7 +257,7 @@ export default function ChatArea({
                           Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={() => onDeleteMessage(message.id)}
+                          onClick={() => handleDeleteMessage(message.id)}
                           className="text-red-500 focus:text-red-500"
                         >
                           <Trash2 className="mr-2 h-4 w-4" />

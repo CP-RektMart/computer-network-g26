@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Edit2, LogOut, Menu, Search, UserPlus, Users, X } from 'lucide-react'
-import type { Chat, User } from '@/lib/types'
+import type { User } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -15,37 +15,26 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useUser } from '@/context/user-context'
+import { useChat } from '@/context/chat-context'
 
 interface ChatSidebarProps {
-  chats: Chat[]
-  selectedChat: Chat | null
-  onSelectChat: (chat: Chat) => void
-  onCreateGroup: (name: string, participants: User[]) => void
-  onJoinGroup: (groupId: string) => void
-  currentUser: User
-  onUpdateName: (newName: string) => void
-  onLogout: () => Promise<void>
   isMobileMenuOpen: boolean
   setIsMobileMenuOpen: (open: boolean) => void
 }
 
 export default function ChatSidebar({
-  chats,
-  selectedChat,
-  onSelectChat,
-  onCreateGroup,
-  onJoinGroup,
-  currentUser,
-  onUpdateName,
-  onLogout,
   isMobileMenuOpen,
   setIsMobileMenuOpen,
 }: ChatSidebarProps) {
+  const { user, updateUsername, logout } = useUser()
+  const { chats, selectedChat, selectChat } = useChat()
+
   const [searchQuery, setSearchQuery] = useState('')
   const [newGroupName, setNewGroupName] = useState('')
   const [groupIdToJoin, setGroupIdToJoin] = useState('')
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false)
-  const [editedName, setEditedName] = useState(currentUser.username)
+  const [editedName, setEditedName] = useState(user?.username || '')
   const [chatTypeFilter, setChatTypeFilter] = useState('all')
 
   // Mock users for group creation
@@ -70,18 +59,18 @@ export default function ChatSidebar({
   const [selectedUsers, setSelectedUsers] = useState<User[]>([])
 
   const handleCreateGroup = () => {
-    if (newGroupName.trim() && selectedUsers.length > 0) {
-      onCreateGroup(newGroupName, selectedUsers)
-      setNewGroupName('')
-      setSelectedUsers([])
-    }
+    // if (newGroupName.trim() && selectedUsers.length > 0) {
+    //   createGroup(newGroupName, selectedUsers)
+    //   setNewGroupName('')
+    //   setSelectedUsers([])
+    // }
   }
 
   const handleJoinGroup = () => {
-    if (groupIdToJoin.trim()) {
-      onJoinGroup(groupIdToJoin)
-      setGroupIdToJoin('')
-    }
+    // if (groupIdToJoin.trim()) {
+    //   joinGroup(groupIdToJoin)
+    //   setGroupIdToJoin('')
+    // }
   }
 
   const toggleUserSelection = (user: User) => {
@@ -90,6 +79,17 @@ export default function ChatSidebar({
     } else {
       setSelectedUsers([...selectedUsers, user])
     }
+  }
+
+  const handleUpdateUsername = async () => {
+    if (editedName.trim() && editedName !== user?.username) {
+      await updateUsername(editedName)
+      setIsEditProfileOpen(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    await logout()
   }
 
   const filteredChats = chats.filter((chat) => {
@@ -125,12 +125,12 @@ export default function ChatSidebar({
             <div className="flex items-center space-x-3">
               <Avatar>
                 <AvatarFallback>
-                  {currentUser.username.charAt(0)}
+                  {user?.username ? user.username.charAt(0) : '?'}
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h3 className="font-medium">{currentUser.username}</h3>
-                <p className="text-xs text-gray-500">{currentUser.email}</p>
+                <h3 className="font-medium">{user?.username}</h3>
+                <p className="text-xs text-gray-500">{user?.email}</p>
               </div>
             </div>
             <div className="flex items-center">
@@ -159,11 +159,10 @@ export default function ChatSidebar({
                     </div>
                     <Button
                       className="w-full"
-                      onClick={() => {
-                        onUpdateName(editedName)
-                        setIsEditProfileOpen(false)
-                      }}
-                      disabled={!editedName.trim()}
+                      onClick={handleUpdateUsername}
+                      disabled={
+                        !editedName.trim() || editedName === user?.username
+                      }
                     >
                       Save
                     </Button>
@@ -174,7 +173,7 @@ export default function ChatSidebar({
                 variant="ghost"
                 size="icon"
                 title="Logout"
-                onClick={onLogout}
+                onClick={handleLogout}
               >
                 <LogOut className="h-5 w-5" />
               </Button>
@@ -218,32 +217,34 @@ export default function ChatSidebar({
                     <div className="space-y-2">
                       <Label>Select Participants</Label>
                       <div className="max-h-60 space-y-2 overflow-y-auto rounded-md border p-2">
-                        {mockUsers.map((user) => (
+                        {mockUsers.map((mockUser) => (
                           <div
-                            key={user.id}
+                            key={mockUser.id}
                             className={`flex cursor-pointer items-center justify-between rounded-md p-2 ${
-                              selectedUsers.some((u) => u.id === user.id)
+                              selectedUsers.some((u) => u.id === mockUser.id)
                                 ? 'bg-gray-100'
                                 : ''
                             }`}
-                            onClick={() => toggleUserSelection(user)}
+                            onClick={() => toggleUserSelection(mockUser)}
                           >
                             <div className="flex items-center space-x-3">
                               <Avatar className="h-8 w-8">
                                 <AvatarFallback>
-                                  {user.username.charAt(0)}
+                                  {mockUser.username.charAt(0)}
                                 </AvatarFallback>
                               </Avatar>
                               <div>
                                 <p className="text-sm font-medium">
-                                  {user.username}
+                                  {mockUser.username}
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                  {user.email}
+                                  {mockUser.email}
                                 </p>
                               </div>
                             </div>
-                            {selectedUsers.some((u) => u.id === user.id) && (
+                            {selectedUsers.some(
+                              (u) => u.id === mockUser.id,
+                            ) && (
                               <div className="h-4 w-4 rounded-full bg-primary"></div>
                             )}
                           </div>
@@ -317,7 +318,10 @@ export default function ChatSidebar({
                         ? 'bg-gray-100'
                         : 'hover:bg-gray-50'
                     }`}
-                    onClick={() => onSelectChat(chat)}
+                    onClick={() => {
+                      selectChat(chat)
+                      setIsMobileMenuOpen(false)
+                    }}
                   >
                     <div className="flex items-center space-x-3">
                       <Avatar>
