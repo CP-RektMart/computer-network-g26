@@ -285,19 +285,115 @@ export const createDirectConversation = async (senderId: number, receiverId: num
           { senderId: receiverId, receiverId: senderId },
         ],
       },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true,
+            isOnline: true,
+          },
+        },
+        receiver: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true,
+            isOnline: true,
+          },
+        },
+        messages: {
+          orderBy: {
+            sentAt: 'desc',
+          },
+          take: 1,
+        },
+      },
     });
 
     if (existingConversation) {
-      return existingConversation;
+      const otherUser = existingConversation.senderId === senderId ? existingConversation.receiver : existingConversation.sender;
+
+      const lastMessage = existingConversation.messages[0] || null;
+
+      return {
+        id: existingConversation.id,
+        otherUser: {
+          id: otherUser.id,
+          username: otherUser.username,
+          avatar: otherUser.avatar,
+          isOnline: otherUser.isOnline,
+        },
+        lastMessage: lastMessage
+          ? {
+              id: lastMessage.id,
+              senderId: lastMessage.senderId,
+              receiverId: lastMessage.receiverId,
+              content: lastMessage.content,
+              sentAt: lastMessage.sentAt,
+              conversationId: lastMessage.conversationId,
+            }
+          : null,
+        createdAt: existingConversation.createdAt,
+      };
     }
 
     // Create new conversation
-    return await prisma.directConversation.create({
+    const newConversation = await prisma.directConversation.create({
       data: {
         senderId,
         receiverId,
       },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true,
+            isOnline: true,
+          },
+        },
+        receiver: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true,
+            isOnline: true,
+          },
+        },
+        messages: {
+          orderBy: {
+            sentAt: 'desc',
+          },
+          take: 1,
+        },
+      },
     });
+
+    const otherUser = newConversation.senderId === senderId ? newConversation.receiver : newConversation.sender;
+
+    const lastMessage = newConversation.messages[0] || null;
+
+    return {
+      id: newConversation.id,
+      otherUser: {
+        id: otherUser.id,
+        username: otherUser.username,
+        avatar: otherUser.avatar,
+        isOnline: otherUser.isOnline,
+      },
+      lastMessage: lastMessage
+        ? {
+            id: lastMessage.id,
+            senderId: lastMessage.senderId,
+            receiverId: lastMessage.receiverId,
+            content: lastMessage.content,
+            sentAt: lastMessage.sentAt,
+            conversationId: lastMessage.conversationId,
+          }
+        : null,
+      createdAt: newConversation.createdAt,
+    };
   } catch (error) {
     console.error('Error creating direct conversation:', error);
     throw error;

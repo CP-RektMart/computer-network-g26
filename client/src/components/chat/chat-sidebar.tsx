@@ -38,7 +38,7 @@ export default function ChatSidebar({
   setIsMobileMenuOpen,
 }: ChatSidebarProps) {
   const { user: currentUser, updateUsername, logout } = useUser()
-  const { chats, selectedChat, selectChat } = useChat()
+  const { chats, selectedChat, selectChat, joinDirectChat } = useChat()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [newGroupName, setNewGroupName] = useState('')
@@ -46,6 +46,7 @@ export default function ChatSidebar({
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false)
   const [editedName, setEditedName] = useState(currentUser?.username || '')
   const [chatTypeFilter, setChatTypeFilter] = useState('all')
+  const [openContactsDialog, setOpenContactsDialog] = useState(false)
 
   const fetchUsers = async (): Promise<User[]> => {
     const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users`, {
@@ -200,7 +201,10 @@ export default function ChatSidebar({
                 />
               </div>
 
-              <Dialog>
+              <Dialog
+                open={openContactsDialog}
+                onOpenChange={setOpenContactsDialog}
+              >
                 <DialogTrigger asChild>
                   <Button variant="outline" size="icon">
                     <Plus className="h-4 w-4" />
@@ -222,6 +226,11 @@ export default function ChatSidebar({
                           <div
                             key={user.id}
                             className="flex items-center justify-between rounded-md p-2 hover:bg-gray-100"
+                            onClick={() => {
+                              joinDirectChat(user.id)
+                              setIsMobileMenuOpen(false)
+                              setOpenContactsDialog(false)
+                            }}
                           >
                             <div className="flex items-center space-x-3">
                               <Avatar className="h-8 w-8">
@@ -358,7 +367,7 @@ export default function ChatSidebar({
             <Tabs defaultValue="all" onValueChange={setChatTypeFilter}>
               <TabsList className="w-full h-full p-2 rounded-full *:rounded-full *:h-9 *:data-[state=active]:text-primary">
                 <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="person">Person</TabsTrigger>
+                <TabsTrigger value="direct">Direct</TabsTrigger>
                 <TabsTrigger value="group">Group</TabsTrigger>
               </TabsList>
             </Tabs>
@@ -404,11 +413,11 @@ export default function ChatSidebar({
                       <span className="text-xs text-gray-500">
                         {chat.timestamp}
                       </span>
-                      {chat.unread > 0 && (
+                      {/* {chat.unread > 0 && (
                         <Badge className="h-5 w-5 rounded-full p-0 flex items-center justify-center bg-red-500">
                           {chat.unread}
                         </Badge>
-                      )}
+                      )} */}
                     </div>
                   </div>
                 ))

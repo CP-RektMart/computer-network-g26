@@ -67,14 +67,17 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Listen for direct message events
       newSocket.on('socket-direct-message', (data) => {
+        console.log('Direct message received:', data)
         if (data.status === 'ok') {
           const message = data.data
           addMessageToChat(message.conversationId, message)
+          updateChatLastMessage(message.conversationId, message)
         }
       })
 
       // Listen for direct notifications
       newSocket.on('socket-direct-notification', (data) => {
+        console.log('Direct notification received:', data)
         if (data.status === 'ok') {
           const { conversationId, message } = data.data
           addMessageToChat(conversationId, message)
@@ -84,6 +87,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Handle direct conversation joined
       newSocket.on('socket-direct-join', (data) => {
+        console.log('Direct conversation joined:', data)
         if (data.status === 'ok') {
           const { conversation, otherUser, messages: chatMessages } = data.data
 
@@ -268,10 +272,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!socket || !user) return
 
     try {
-      // You would typically call your API to create or get a conversation
-      // For this example, we'll mock the creation with a direct API call
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/conversations/direct`,
+        `${import.meta.env.VITE_API_URL}/api/directs/conversations`,
         {
           method: 'POST',
           headers: {
@@ -286,8 +288,16 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const conversation = await response.json()
 
-      // Join the conversation
-      joinDirectConversation(conversation.id)
+      selectChat({
+        id: conversation.data.id,
+        name: conversation.data.otherUser.username,
+        isGroup: false,
+        avatar: conversation.data.otherUser.avatar,
+        participants: [user, conversation.data.otherUser],
+        lastMessage: '',
+        timestamp: '',
+        unread: 0,
+      })
     } catch (error) {
       console.error('Error joining direct chat:', error)
     }
