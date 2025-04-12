@@ -5,7 +5,7 @@ import { createDirectConversation } from './socket';
 // Get all conversations for a user
 export const getConversations = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = parseInt(req.userId ?? '');
+    const userId = req.userId;
 
     if (!userId) {
       res.status(401).json({ message: 'User not authenticated' });
@@ -74,7 +74,7 @@ export const getConversations = async (req: Request, res: Response): Promise<voi
 export const getConversationMessages = async (req: Request, res: Response): Promise<void> => {
   try {
     const { conversationId } = req.params;
-    const userId = parseInt(req.userId ?? '');
+    const userId = req.userId;
 
     if (!userId) {
       res.status(401).json({
@@ -138,7 +138,7 @@ export const getConversationMessages = async (req: Request, res: Response): Prom
 export const createConversation = async (req: Request, res: Response): Promise<void> => {
   try {
     const { receiverId } = req.body;
-    const senderId = parseInt(req.userId ?? '');
+    const senderId = req.userId;
 
     if (!senderId) {
       res.status(401).json({
@@ -190,7 +190,7 @@ export const createConversation = async (req: Request, res: Response): Promise<v
 export const sendMessage = async (req: Request, res: Response): Promise<void> => {
   try {
     const { conversationId, content } = req.body;
-    const senderId = parseInt(req.userId ?? '');
+    const senderId = req.userId;
 
     if (!senderId) {
       res.status(401).json({

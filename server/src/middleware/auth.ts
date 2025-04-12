@@ -5,7 +5,7 @@ import { Request, Response, NextFunction } from 'express';
 declare global {
   namespace Express {
     interface Request {
-      userId?: string;
+      userId?: number;
     }
   }
 }
@@ -13,7 +13,6 @@ import { JWT_SECRET } from '@/env';
 import jwt from 'jsonwebtoken';
 import { body } from 'express-validator';
 import { validationResult } from 'express-validator';
-
 
 export const validateRegisterUser = [
   body('username').isString().notEmpty().withMessage('Username is required'),
