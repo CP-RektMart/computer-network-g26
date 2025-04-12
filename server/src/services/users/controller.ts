@@ -95,7 +95,7 @@ export const getUserById = async (id: number): Promise<UserDto | null> => {
 };
 
 // Retrieves a user's details by their name and returns them if found, otherwise returns null.
-export const getUserByName = async (name: string): Promise<UserDto | null> => {
+export const getUserByUsername = async (name: string): Promise<UserDto | null> => {
   const user = await prisma.user.findUnique({
     where: { name },
     select: {
@@ -129,7 +129,7 @@ export const isUserExistById = async (userId: number): Promise<boolean> => {
 };
 
 // Checks if a user exists by their name and returns true if found, otherwise false.
-export const isUserExistByName = async (name: string): Promise<boolean> => {
+export const isUserExistByUsername = async (name: string): Promise<boolean> => {
   const user = await prisma.user.count({
     where: { name: name },
   });
@@ -217,7 +217,27 @@ export const getChatsId = async (userId: number): Promise<string[]> => {
   return chats.map((chat) => chat.roomId);
 };
 
-// TODO: isUserOnline 
+export const updateUsername = async (userId: number, newUsername: string): Promise<UserDto> => {
+  // Check if the new username already exists
+  const existingUsername = await prisma.user.findUnique({
+    where: { name: newUsername },
+  });
+
+  if (existingUsername) {
+    throw new Error('Username already exists');
+  }
+
+  // Update the username
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: { name: newUsername },
+  });
+
+  //TODO: emit socket event to update username in all rooms
+
+  return updatedUser;
+};
+
+// TODO: isUserOnline
 // TODO: updateUserOnline
 // TODO: updateUserOffline
-// TODO: editUserInfo 

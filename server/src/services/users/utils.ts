@@ -2,7 +2,8 @@ import * as express from 'express';
 import { JWT_SECRET } from '@/env';
 import jwt from 'jsonwebtoken';
 import { UserDto } from './type';
-const getSignedJwtToken = (userId: number): string => {
+
+export const getSignedJwtToken = (userId: number): string => {
   return jwt.sign({ userId }, JWT_SECRET, {
     expiresIn: '30d',
   });

@@ -1,7 +1,7 @@
 import * as express from 'express';
 import { body, validationResult } from 'express-validator';
 
-import { registerUser, getUserById, getUserByUsername, loginUser, updateUsername } from './controller';
+import { registerUser, getUserById, getUserByUsername, loginUser, updateUsername, getChat } from './controller';
 import { validateRegisterUser, protect } from '@/middleware/auth';
 import { getSignedJwtToken } from './utils';
 
@@ -115,7 +115,7 @@ router.post('/login', async (req: express.Request, res: express.Response): Promi
       return;
     }
 
-    const token = getSignedJwtToken(user);
+    const token = getSignedJwtToken(user.id);
 
     res.status(200).json({
       success: true,
@@ -278,7 +278,7 @@ router.get('/:id', async (req: express.Request, res: express.Response): Promise<
  */
 router.get('/username/:username', async (req: express.Request, res: express.Response): Promise<void> => {
   const username: string = req.params.username.toLowerCase();
-  const user = await getUserByName(username);
+  const user = await getUserByUsername(username);
 
   if (!user) {
     res.status(404).json({ error: 'User not found' });
@@ -339,7 +339,7 @@ router.put(
         message: 'Username updated successfully',
         user: {
           userId: user.id,
-          username: user.username,
+          username: user.name,
           email: user.email,
         },
       });
