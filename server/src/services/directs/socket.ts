@@ -74,18 +74,6 @@ export const handleDirectJoin = async (eventName: string, messageEventName: stri
         messages: messages.reverse(),
       },
     });
-
-    // Notify the other user that this user has joined
-    const otherUserId = otherUser.id;
-    io.to(`user:${otherUserId}`).emit('socket-direct-activity', {
-      status: 'ok',
-      message: 'User joined conversation',
-      data: {
-        conversationId,
-        userId,
-        action: 'join',
-      },
-    });
   } catch (error) {
     console.error('Error in handleDirectJoin:', error);
     socket.emit(eventName, {
@@ -246,24 +234,6 @@ export const handleDirectMessage = async (eventName: string, socket: ChatSocket,
       status: 'ok',
       message: 'New message',
       data: message,
-    });
-
-    // Also emit to the recipient's personal room
-    io.to(`user:${receiverId}`).emit('socket-direct-notification', {
-      status: 'ok',
-      message: 'New direct message',
-      data: {
-        conversationId,
-        senderId,
-        message,
-      },
-    });
-
-    // Success response to sender
-    socket.emit(`${eventName}-ack`, {
-      status: 'ok',
-      message: 'Message sent',
-      data: { messageId: message.id },
     });
   } catch (error) {
     console.error('Error in handleDirectMessage:', error);

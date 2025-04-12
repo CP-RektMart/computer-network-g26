@@ -75,16 +75,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       })
 
-      // Listen for direct notifications
-      newSocket.on('socket-direct-notification', (data) => {
-        console.log('Direct notification received:', data)
-        if (data.status === 'ok') {
-          const { conversationId, message } = data.data
-          addMessageToChat(conversationId, message)
-          updateChatLastMessage(conversationId, message)
-        }
-      })
-
       // Handle direct conversation joined
       newSocket.on('socket-direct-join', (data) => {
         console.log('Direct conversation joined:', data)
