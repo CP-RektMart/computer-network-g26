@@ -1,7 +1,7 @@
 import { Outlet, createRootRouteWithContext } from '@tanstack/react-router'
-import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
+// import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import type { QueryClient } from '@tanstack/react-query'
-import TanstackQueryLayout from '@/integrations/tanstack-query/layout'
+// import TanstackQueryLayout from '@/integrations/tanstack-query/layout'
 import { UserProvider } from '@/context/user-context'
 import { ChatProvider } from '@/context/chat-context'
 
@@ -14,8 +14,8 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     <UserProvider>
       <ChatProvider>
         <Outlet />
-        <TanStackRouterDevtools />
-        <TanstackQueryLayout />
+        {/* <TanStackRouterDevtools /> */}
+        {/* <TanstackQueryLayout /> */}
       </ChatProvider>
     </UserProvider>
   ),

@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { useChat } from '@/context/chat-context'
 import { useUser } from '@/context/user-context'
@@ -23,16 +24,13 @@ interface ChatAreaProps {
 
 export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
   const { user } = useUser()
-  const { selectedChat, messages, sendMessage } = useChat()
+  const { selectedChat, messages, sendMessage, loadingMessages } = useChat()
   const [messageText, setMessageText] = useState('')
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const currentChatMessages = selectedChat ? messages[selectedChat.id] : []
-  console.log('currentChatMessages', currentChatMessages)
-  console.log('selectedChat', selectedChat)
-  console.log('messages', messages)
 
   useEffect(() => {
     scrollToBottom()
@@ -147,7 +145,7 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
       </div>
 
       {/* Messages area */}
-      <ScrollArea className="flex-1 p-4">
+      <ScrollArea className="flex-1 p-4 h-96">
         <DotPattern
           cr={1.5}
           className={cn(
@@ -157,7 +155,7 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
           )}
         />
         <div className="relative space-y-4">
-          {currentChatMessages.length > 0 ? (
+          {!loadingMessages && currentChatMessages.length > 0 ? (
             currentChatMessages.map((message) => {
               const isCurrentUser = message.senderId === user?.id
               const sender = selectedChat.participants.find(
@@ -219,7 +217,7 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                             <span
                               className={`text-xs ${isCurrentUser ? 'text-gray-300' : 'text-gray-500'}`}
                             >
-                              {message.sentAt.toLocaleTimeString([], {
+                              {new Date(message.sentAt).toLocaleTimeString([], {
                                 hour: '2-digit',
                                 minute: '2-digit',
                               })}
@@ -280,20 +278,21 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
 
       {/* Message input */}
       <div className="border-t border-t-input p-4">
-        <form onSubmit={handleSendMessage} className="flex space-x-2">
-          <Textarea
-            placeholder="Type a message... (Shift+Enter for new line)"
+        <form
+          onSubmit={handleSendMessage}
+          className="flex space-x-2 items-center"
+        >
+          <Input
+            placeholder="Type a message..."
             value={messageText}
             onChange={(e) => setMessageText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className="flex-1 min-h-10 max-h-52 resize-y py-2 text-sm md:text-base"
-            rows={1}
+            className="flex-1 h-10 py-2 px-4 bg-gray-100 rounded-full border-none text-sm md:text-base"
           />
           <Button
             type="submit"
             disabled={!messageText.trim()}
-            className="self-end"
-            size="lg"
+            className="rounded-full"
+            size="icon"
           >
             <Send className="h-4 w-4" />
           </Button>

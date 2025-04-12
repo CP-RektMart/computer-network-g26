@@ -23,7 +23,7 @@ export interface Message {
   senderId: number
   receiverId: number
   content: string
-  sentAt: Date
+  sentAt: string
   sender?: User
 }
 

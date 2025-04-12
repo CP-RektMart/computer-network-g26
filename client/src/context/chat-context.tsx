@@ -206,48 +206,41 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   }
 
   // Select a chat
-  const selectChat = (chat: Chat) => {
+  const selectChat = async (chat: Chat) => {
     setSelectedChat(chat)
 
     // Reset unread count
     setChats((prev) =>
-      prev.map((c) => {
-        if (c.id === chat.id) {
-          return { ...c, unread: 0 }
-        }
-        return c
-      }),
+      prev.map((c) => (c.id === chat.id ? { ...c, unread: 0 } : c)),
     )
 
     // Fetch messages for the selected chat
     setLoadingMessages(true)
-    fetch(
-      `${import.meta.env.VITE_API_URL}/api/directs/conversations/${chat.id}`,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/directs/conversations/${chat.id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+          },
         },
-      },
-    )
-      .then((response) => {
-        if (!response.ok) throw new Error('Failed to fetch messages')
-        return response.json()
-      })
-      .then((data) => {
-        console.log('Fetched messages:', data)
-        const chatMessages: Message[] = data.data
-        setMessages((prev) => ({
-          ...prev,
-          [chat.id]: chatMessages,
-        }))
-        setLoadingMessages(false)
-      })
-      .catch((error) => {
-        console.error('Error fetching messages:', error)
-        setLoadingMessages(false)
-      })
+      )
+      if (!response.ok) throw new Error('Failed to fetch messages')
 
-    // For direct chats, join the room
+      const data = await response.json()
+      const chatMessages: Message[] = data.data
+
+      setMessages((prev) => ({
+        ...prev,
+        [chat.id]: chatMessages,
+      }))
+    } catch (error) {
+      console.error('Error fetching messages:', error)
+    } finally {
+      setLoadingMessages(false)
+    }
+
+    // For direct chats, join and open the room
     if (!chat.isGroup) {
       joinDirectConversation(chat.id)
       openDirectConversation(chat.id)

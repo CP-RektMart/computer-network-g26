@@ -22,31 +22,51 @@ router.use(protect);
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   id:
- *                     type: integer
- *                     example: 1
- *                   participants:
- *                     type: array
- *                     items:
- *                       type: object
- *                       properties:
- *                         id:
- *                           type: integer
- *                           example: 2
- *                         username:
- *                           type: string
- *                           example: johndoe
- *                   lastMessage:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: ok
+ *                 message:
+ *                   type: string
+ *                   example: Conversations retrieved successfully
+ *                 data:
+ *                   type: array
+ *                   items:
  *                     type: object
  *                     properties:
- *                       content:
+ *                       id:
  *                         type: string
- *                         example: Hello there!
- *                       timestamp:
+ *                         example: 1
+ *                       otherUser:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: integer
+ *                             example: 2
+ *                           username:
+ *                             type: string
+ *                             example: johndoe
+ *                           avatar:
+ *                             type: string
+ *                             example: https://example.com/avatar.jpg
+ *                           isOnline:
+ *                             type: boolean
+ *                             example: true
+ *                       lastMessage:
+ *                         type: object
+ *                         nullable: true
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             example: 1-2023-01-01T00:00:00Z-2
+ *                           content:
+ *                             type: string
+ *                             example: Hello there!
+ *                           sentAt:
+ *                             type: string
+ *                             format: date-time
+ *                       createdAt:
  *                         type: string
  *                         format: date-time
  *       401:
@@ -68,7 +88,7 @@ router.get('/conversations', directMessageController.getConversations);
  *         name: conversationId
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
  *         description: The ID of the conversation
  *     responses:
  *       200:
@@ -78,28 +98,51 @@ router.get('/conversations', directMessageController.getConversations);
  *             schema:
  *               type: object
  *               properties:
- *                 conversationId:
- *                   type: integer
- *                   example: 1
- *                 messages:
+ *                 status:
+ *                   type: string
+ *                   example: ok
+ *                 message:
+ *                   type: string
+ *                   example: Messages retrieved successfully
+ *                 data:
  *                   type: array
  *                   items:
  *                     type: object
  *                     properties:
  *                       id:
- *                         type: integer
- *                         example: 1
+ *                         type: string
+ *                         example: 1-2023-01-01T00:00:00Z-2
  *                       content:
  *                         type: string
  *                         example: Hello, how are you?
  *                       senderId:
  *                         type: integer
+ *                         example: 1
+ *                       receiverId:
+ *                         type: integer
  *                         example: 2
- *                       timestamp:
+ *                       conversationId:
+ *                         type: string
+ *                         example: conv123
+ *                       sentAt:
  *                         type: string
  *                         format: date-time
+ *                       sender:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: integer
+ *                             example: 1
+ *                           username:
+ *                             type: string
+ *                             example: johndoe
+ *                           avatar:
+ *                             type: string
+ *                             example: https://example.com/avatar.jpg
  *       401:
  *         description: Unauthorized - token is missing or invalid
+ *       403:
+ *         description: Not authorized to access this conversation
  *       404:
  *         description: Conversation not found
  */
@@ -120,9 +163,9 @@ router.get('/conversations/:conversationId', directMessageController.getConversa
  *         application/json:
  *           schema:
  *             type: object
- *             required: [participantId]
+ *             required: [receiverId]
  *             properties:
- *               participantId:
+ *               receiverId:
  *                 type: integer
  *                 example: 2
  *                 description: The ID of the user to start a conversation with
