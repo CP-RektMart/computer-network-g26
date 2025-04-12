@@ -94,7 +94,7 @@ export const getUserById = async (userId: number) => {
   chat.sort((a, b) => b.last_seem_at.getTime() - a.last_seem_at.getTime());
 
   return {
-    userId: user.id,
+    id: user.id,
     username: user.username,
     email: user.email,
     lastSendAt: user.lastSeenAt,
@@ -140,7 +140,7 @@ export const getUserByUsername = async (username: string) => {
   chat.sort((a, b) => b.last_seem_at.getTime() - a.last_seem_at.getTime());
 
   return {
-    userId: user.id,
+    id: user.id,
     username: user.username,
     email: user.email,
     lastSendAt: user.lastSeenAt,
