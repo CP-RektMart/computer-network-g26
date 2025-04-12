@@ -208,14 +208,30 @@ router.get('/me', protect, async (req: express.Request, res: express.Response): 
   }
 
   const user = await getUserById(userId);
-  const chats = await getChat(userId);
 
   if (!user) {
     res.status(404).json({ message: 'User not found' });
     return;
   }
 
-  res.status(200).json({ user, chats });
+  res.status(200).json(user);
+});
+
+router.get('/me/chat', protect, async (req: express.Request, res: express.Response): Promise<void> => {
+  const userId: number = (req as any).userId;
+
+  if (!userId) {
+    res.status(401).json({ message: 'Unauthorized' });
+    return;
+  }
+
+  const chat = await getChat(userId);
+  if (!chat) {
+    res.status(404).json({ message: 'Chat not found' });
+    return;
+  }
+
+  res.status(200).json(chat);
 });
 
 // TODO: fix swagger

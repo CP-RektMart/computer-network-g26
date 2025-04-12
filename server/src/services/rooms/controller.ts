@@ -28,7 +28,6 @@ export const getParticipantOfRoom = async (roomId: string): Promise<ParticipantD
     id: p.userId,
     name: p.user.name,
     email: p.user.email,
-    avatar: p.user.avatar,
     joinedAt: p.joinedAt,
     joinAt: p.joinedAt,
     role: p.role,
@@ -75,7 +74,6 @@ export const getParticipant = async (userId: number, roomId: string): Promise<Pa
   return {
     id: participant.userId,
     name: participant.user.name,
-    avatar: participant.user.avatar,
     email: participant.user.email,
     joinAt: participant.joinedAt,
     registeredAt: participant.user.registeredAt,
@@ -120,7 +118,7 @@ export const getMessageBefore = async (roomId: string, limit: number, before: Da
     },
     take: limit,
     orderBy: {
-      sentAt: 'asc',
+      sentAt: 'desc',
     },
   });
 
@@ -140,7 +138,7 @@ export const getMessageRecently = async (roomId: string, limit: number): Promise
     },
     take: limit,
     orderBy: {
-      sentAt: 'asc',
+      sentAt: 'desc',
     },
   });
 
@@ -150,6 +148,16 @@ export const getMessageRecently = async (roomId: string, limit: number): Promise
     timestamp: message.sentAt,
     content: message.content as MessageContentDto,
   }));
+};
+
+export const getMessageCount = async (roomId: string): Promise<number> => {
+  const count = await prisma.message.count({
+    where: {
+      roomId: roomId,
+    },
+  });
+
+  return count;
 };
 
 // Retrieves unread messages for a user in a specific room since their last seen time
@@ -179,7 +187,7 @@ export const getUnreadMessage = async (userId: number, roomId: string): Promise<
       },
     },
     orderBy: {
-      sentAt: 'asc',
+      sentAt: 'desc',
     },
   });
 

@@ -16,6 +16,46 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
+export function formatTimestamp(timestamp: string) {
+  if (!timestamp) {
+    return ''
+  }
+  const now = new Date();
+  const messageDate = new Date(timestamp);
+
+  // Time difference in milliseconds
+  const timeDifference = now.getTime() - messageDate.getTime();
+
+  // 1 hour in milliseconds
+  const oneHour = 1000 * 60 * 60;
+  // 1 day in milliseconds
+  const oneDay = 1000 * 60 * 60 * 24;
+  // 1 month in milliseconds (approximately)
+  const oneMonth = 1000 * 60 * 60 * 24 * 30;
+
+  // If it's less than 12 hours ago
+  if (timeDifference < oneDay) {
+    const hours = String(messageDate.getHours()).padStart(2, '0');
+    const minutes = String(messageDate.getMinutes()).padStart(2, '0');
+    const ampm = messageDate.getHours() < 12 ? 'AM' : 'PM';
+    return `${hours}:${minutes} ${ampm}`;
+  }
+
+  // If it's less than 1 month ago, show in hours/days
+  if (timeDifference < oneMonth) {
+    const hoursAgo = Math.floor(timeDifference / oneHour);
+    if (hoursAgo < 24) {
+      return `${hoursAgo} hour${hoursAgo > 1 ? 's' : ''} ago`;
+    }
+    const daysAgo = Math.floor(timeDifference / oneDay);
+    return `${daysAgo} day${daysAgo > 1 ? 's' : ''} ago`;
+  }
+
+  // If it's more than 1 month ago, show in months
+  const monthsAgo = Math.floor(timeDifference / oneMonth);
+  return `${monthsAgo} month${monthsAgo > 1 ? 's' : ''} ago`;
+};
+
 interface ChatSidebarProps {
   chats: Chat[]
   selectedChat: Chat | null
@@ -115,9 +155,8 @@ export default function ChatSidebar({
 
       {/* Sidebar */}
       <div
-        className={`${
-          isMobileMenuOpen ? 'translate-x-0 pt-14' : '-translate-x-full'
-        } fixed inset-y-0 left-0 z-40 w-80 transform md:border md:border-input bg-white md:rounded-2xl transition-transform duration-300 ease-in-out md:relative md:translate-x-0`}
+        className={`${isMobileMenuOpen ? 'translate-x-0 pt-14' : '-translate-x-full'
+          } fixed inset-y-0 left-0 z-40 w-80 transform md:border md:border-input bg-white md:rounded-2xl transition-transform duration-300 ease-in-out md:relative md:translate-x-0`}
       >
         <div className="flex h-full flex-col">
           {/* User profile */}
@@ -221,11 +260,10 @@ export default function ChatSidebar({
                         {mockUsers.map((user) => (
                           <div
                             key={user.id}
-                            className={`flex cursor-pointer items-center justify-between rounded-md p-2 ${
-                              selectedUsers.some((u) => u.id === user.id)
-                                ? 'bg-gray-100'
-                                : ''
-                            }`}
+                            className={`flex cursor-pointer items-center justify-between rounded-md p-2 ${selectedUsers.some((u) => u.id === user.id)
+                              ? 'bg-gray-100'
+                              : ''
+                              }`}
                             onClick={() => toggleUserSelection(user)}
                           >
                             <div className="flex items-center space-x-3">
@@ -312,16 +350,15 @@ export default function ChatSidebar({
                 filteredChats.map((chat) => (
                   <div
                     key={chat.id}
-                    className={`flex cursor-pointer items-center justify-between rounded-md p-3 ${
-                      selectedChat?.id === chat.id
-                        ? 'bg-gray-100'
-                        : 'hover:bg-gray-50'
-                    }`}
+                    className={`flex cursor-pointer items-center justify-between rounded-md p-3 ${selectedChat?.id === chat.id
+                      ? 'bg-gray-100'
+                      : 'hover:bg-gray-50'
+                      }`}
                     onClick={() => onSelectChat(chat)}
                   >
                     <div className="flex items-center space-x-3">
                       <Avatar>
-                        <AvatarImage src={chat.avatar} alt={chat.name} />
+                        {/* <AvatarImage src={chat.avatar} alt={chat.name} /> */}
                         <AvatarFallback>{chat.name.charAt(0)}</AvatarFallback>
                       </Avatar>
                       <div>
@@ -340,7 +377,7 @@ export default function ChatSidebar({
                     </div>
                     <div className="flex flex-col self-start items-end space-y-1">
                       <span className="text-xs text-gray-500">
-                        {chat.timestamp}
+                        {formatTimestamp(chat.timestamp)}
                       </span>
                       {chat.unread > 0 && (
                         <Badge className="h-5 w-5 rounded-full p-0 flex items-center justify-center bg-red-500">

@@ -1,7 +1,7 @@
 import { prisma } from '@/database';
 import bcrypt from 'bcryptjs';
 import { getGroup } from '@/services/groups/controller';
-import { getMessageRecently, getUnreadMessageCount } from '@/services/rooms/controller';
+import { getMessageCount, getMessageRecently, getUnreadMessageCount } from '@/services/rooms/controller';
 import { UserChatDetailDto, UserDto } from './type';
 import { ChatInfoDto, ParticipantDto } from '../rooms/type';
 
@@ -35,7 +35,6 @@ export const registerUser = async (name: string, email: string, password: string
 
   return {
     id: user.id,
-    avatar: user.avatar,
     email: user.email,
     name: user.name,
     registeredAt: user.registeredAt,
@@ -60,7 +59,6 @@ export const loginUser = async (name: string, password: string): Promise<UserDto
 
   return {
     id: user.id,
-    avatar: user.avatar,
     email: user.email,
     name: user.name,
     registeredAt: user.registeredAt,
@@ -76,7 +74,6 @@ export const getUserById = async (id: number): Promise<UserDto | null> => {
       id: true,
       email: true,
       name: true,
-      avatar: true,
       registeredAt: true,
       lastLoginAt: true,
     },
@@ -88,7 +85,6 @@ export const getUserById = async (id: number): Promise<UserDto | null> => {
     id: user.id,
     name: user.name,
     email: user.email,
-    avatar: user.avatar,
     registeredAt: user.registeredAt,
     lastLoginAt: user.lastLoginAt,
   };
@@ -102,7 +98,6 @@ export const getUserByUsername = async (name: string): Promise<UserDto | null> =
       id: true,
       email: true,
       name: true,
-      avatar: true,
       registeredAt: true,
       lastLoginAt: true,
     },
@@ -114,7 +109,6 @@ export const getUserByUsername = async (name: string): Promise<UserDto | null> =
     id: user.id,
     name: user.name,
     email: user.email,
-    avatar: user.avatar,
     registeredAt: user.registeredAt,
     lastLoginAt: user.lastLoginAt,
   };
@@ -159,7 +153,11 @@ export const getChat = async (userId: number): Promise<UserChatDetailDto[]> => {
   const userChats = (
     await Promise.all(
       chats.map(async (chat) => {
-        const [unreadMessageCount, lastMessage] = await Promise.all([getUnreadMessageCount(userId, chat.id), getMessageRecently(chat.id, 1)]);
+        const [unreadMessageCount, lastMessage, messageCount] = await Promise.all([
+          getUnreadMessageCount(userId, chat.id),
+          getMessageRecently(chat.id, 1),
+          getMessageCount(chat.id),
+        ]);
         const isGroup = chat.type === 'group';
 
         const group = isGroup ? await getGroup(chat.id) : null;
@@ -168,7 +166,6 @@ export const getChat = async (userId: number): Promise<UserChatDetailDto[]> => {
           id: p.userId,
           name: p.user.name,
           email: p.user.email,
-          avatar: p.user.avatar,
           joinedAt: p.joinedAt,
           joinAt: p.joinedAt,
           role: p.role,
@@ -182,12 +179,12 @@ export const getChat = async (userId: number): Promise<UserChatDetailDto[]> => {
           id: chat.id,
           name: isGroup ? group?.name || 'Unknown Group' : undefined,
           type: chat.type as ChatInfoDto['type'],
-          avatar: isGroup ? group?.avatar || '' : undefined,
           createAt: chat.createdAt,
           lastMessage: lastMessage[0],
           lastSendAt: chat.lastSendAt ?? undefined,
           participants: mapped,
           unread: unreadMessageCount,
+          messageCount,
         };
 
         return userChat;

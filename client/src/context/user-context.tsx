@@ -17,8 +17,7 @@ const UserContext = createContext<UserContextType | undefined>(undefined)
 const saveToken = (token: string) => {
   localStorage.setItem('auth_token', token)
 }
-
-const getToken = (): string | null => {
+export const getToken = (): string | null => {
   return localStorage.getItem('auth_token')
 }
 
@@ -28,20 +27,41 @@ const removeToken = () => {
 
 // API functions
 const fetchCurrentUser = async (): Promise<User | null> => {
-  const token = getToken()
+  const token = getToken();
 
-  const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users/me`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  })
-
-  if (!response.ok) {
-    return null
+  if (!token) {
+    console.warn('No token found.');
+    return null;
   }
 
-  return response.json()
-}
+  try {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users/me`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.warn('Failed to fetch user:', response.status, response.statusText);
+      return null;
+    }
+
+    const data = await response.json();
+
+    const user: User = {
+      id: data.id,
+      username: data.name,
+      email: data.email,
+      lastLoginAt: data.lastLoginAt,
+      registeredAt: data.registeredAt,
+    }
+    return user;
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    return null;
+  }
+};
 
 const loginUser = async ({
   username,
