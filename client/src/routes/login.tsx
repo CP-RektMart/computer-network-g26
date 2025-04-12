@@ -1,11 +1,20 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { useEffect } from 'react'
 import { LoginForm } from '@/components/login-form'
+import { handleAuthRedirect } from '@/lib/auth'
 
 export const Route = createFileRoute('/login')({
   component: RouteComponent,
 })
 
 function RouteComponent() {
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const isLoginPage = true
+    handleAuthRedirect(isLoginPage, navigate)
+  }, [navigate])
+
   return (
     <div className="grid min-h-svh lg:grid-cols-2">
       <div className="flex items-center justify-center">
