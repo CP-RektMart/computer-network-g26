@@ -79,15 +79,15 @@ export const onSocketRoomMessage = (socket: ChatSocket) => async (req: any) => {
     return;
   }
 
-  if (!body.content || !body.timestamp) {
-    socket.emit(channelName.message, socketErrorResponse('Invalid request: message is invalid (content, timestamp)'));
+  if (!body.content || !body.timestamp || !body.senderId) {
+    socket.emit(channelName.message, socketErrorResponse('Invalid request: message is invalid (content, timestamp, senderId)'));
     return;
   }
 
   logConnection(socket, channelName.message, destination);
 
   try {
-    const savedMessage = await saveMessage(destination, socket.userId!, new Date(body.timestamp), body.content);
+    const savedMessage = await saveMessage(destination, body.senderId, new Date(body.timestamp), body.content);
 
     const res = socketResponse('ok').destination(destination).withBody(savedMessage);
     io.to(`${destination}`).emit(channelName.message, res);

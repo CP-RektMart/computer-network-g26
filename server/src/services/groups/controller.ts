@@ -2,14 +2,13 @@ import { prisma } from '@/database';
 import * as crypto from 'crypto';
 import { UserChatDetailDto } from '@/services/users/type';
 import { ChatInfoDto, ParticipantDto } from '@/services/rooms/type';
-import { getMessageRecently, getRoomType, getUnreadMessageCount, isParticipantOfRoom } from '@/services/rooms/controller';
+import { getMessageCount, getMessageRecently, getRoomType, getUnreadMessageCount, isParticipantOfRoom } from '@/services/rooms/controller';
 
 // This function creates a new group chat with the specified details and participants.
 export const createGroup = async (
   groupName: string,
   description: string,
   ownerUserId: number,
-  groupAvatar: string,
   participantIds: number[]
 ): Promise<UserChatDetailDto> => {
   const uniqueId = crypto.randomBytes(8).toString('hex').slice(0, 16);
@@ -37,7 +36,6 @@ export const createGroup = async (
     data: {
       name: groupName,
       description: description,
-      avatar: groupAvatar,
       id: newRoom.id,
     },
   });
@@ -46,7 +44,6 @@ export const createGroup = async (
     id: p.userId,
     name: p.user.name,
     email: p.user.email,
-    avatar: p.user.avatar,
     joinedAt: p.joinedAt,
     joinAt: p.joinedAt,
     role: p.role,
@@ -59,13 +56,13 @@ export const createGroup = async (
   return {
     id: newGroup.id,
     name: newGroup.name,
-    avatar: newGroup.avatar,
     lastMessage: undefined,
     lastSendAt: undefined,
     createAt: newRoom.createdAt,
     type: 'group',
     participants: mapped,
     unread: 0,
+    messageCount: 0,
   };
 };
 
@@ -117,7 +114,6 @@ export const getGroup = async (groupId: string): Promise<ChatInfoDto | null> => 
     id: group.id,
     name: group.name,
     type: 'group',
-    avatar: group.avatar,
   };
 };
 
@@ -169,7 +165,11 @@ export const joinGroup = async (userId: number, groupId: string): Promise<[Parti
     return [null, null];
   }
 
-  const [unreadMessageCount, lastMessage] = await Promise.all([getUnreadMessageCount(userId, room.id), getMessageRecently(room.id, 1)]);
+  const [unreadMessageCount, lastMessage, messageCount] = await Promise.all([
+    getUnreadMessageCount(userId, room.id),
+    getMessageRecently(room.id, 1),
+    getMessageCount(room.id),
+  ]);
   const isGroup = room.type === 'group';
 
   const group = isGroup ? await getGroup(room.id) : null;
@@ -179,7 +179,6 @@ export const joinGroup = async (userId: number, groupId: string): Promise<[Parti
     id: p.userId,
     name: p.user.name,
     email: p.user.email,
-    avatar: p.user.avatar,
     joinedAt: p.joinedAt,
     joinAt: p.joinedAt,
     role: p.role,
@@ -193,18 +192,17 @@ export const joinGroup = async (userId: number, groupId: string): Promise<[Parti
     id: room.id,
     name: isGroup ? group?.name || 'Unknown Group' : otherMember?.user.name || 'Unknown User',
     type: room.type as ChatInfoDto['type'],
-    avatar: isGroup ? group?.avatar || '' : otherMember?.user.avatar || '',
     createAt: room.createdAt,
     lastMessage: lastMessage[0],
     lastSendAt: room.lastSendAt ?? undefined,
     participants: mapped,
     unread: unreadMessageCount,
+    messageCount,
   };
 
   return [
     {
       id: participant.userId,
-      avatar: participant.user.avatar,
       email: participant.user.email,
       joinAt: participant.joinedAt,
       lastLoginAt: participant.user.lastLoginAt,
@@ -270,7 +268,6 @@ export const leaveGroup = async (userId: number, groupId: string): Promise<Parti
       newAdmin = {
         id: participant.user.id,
         email: participant.user.email,
-        avatar: participant.user.avatar,
         name: participant.user.name,
         registeredAt: participant.user.registeredAt,
         lastLoginAt: participant.user.lastLoginAt,

@@ -13,7 +13,6 @@ export interface ParticipantDto extends UserDto {
 export interface ChatInfoDto {
   id: string;
   type: 'group' | 'direct';
-  avatar: string | undefined;
   name: string | undefined;
 }
 
@@ -23,6 +22,7 @@ export interface ChatDetailDto extends ChatInfoDto {
   lastSendAt: Date | undefined;
   createAt: Date;
   lastMessage: MessageDto | undefined;
+  messageCount: number;
 }
 
 // MessageDto interface represents a message in a chat, including its ID, sender ID, timestamp, and content

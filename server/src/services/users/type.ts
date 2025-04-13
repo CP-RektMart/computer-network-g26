@@ -5,7 +5,6 @@ export interface UserDto {
   id: number;
   name: string;
   email: string;
-  avatar: string;
   registeredAt: Date | undefined;
   lastLoginAt: Date | undefined;
 }

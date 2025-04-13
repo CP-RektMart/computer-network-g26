@@ -17,7 +17,6 @@ router.use(protect);
 export const validateCreateGroup = [
   body('groupName').isString().notEmpty().withMessage('Group name is required'),
   body('description').optional().isString().withMessage('Description must be a string'),
-  body('groupAvatar').optional().isString().withMessage('Group avatar must be a string'),
   body('participantIds').optional().isArray({ min: 1 }).withMessage('participantIds must be a non-empty array'),
   body('participantIds.*').optional().isInt().withMessage('Each participantIds must be an integer'),
 
@@ -40,7 +39,7 @@ router.post('/', AuthenticateJWT, validateCreateGroup, async (req: Request, res:
     }
 
     const userId = parseInt(req.userId, 10);
-    let { groupName, description, groupAvatar, participantIds } = req.body;
+    let { groupName, description, participantIds } = req.body;
     if (!participantIds) {
       participantIds = [];
     }
@@ -48,7 +47,7 @@ router.post('/', AuthenticateJWT, validateCreateGroup, async (req: Request, res:
       participantIds.push(userId);
     }
 
-    const newGroup = await createGroup(groupName, description, userId, groupAvatar, participantIds);
+    const newGroup = await createGroup(groupName, description, userId, participantIds);
 
     res.status(201).json(newGroup);
   } catch (error) {
