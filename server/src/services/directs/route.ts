@@ -21,7 +21,10 @@ router.post('/:receiverId', AuthenticateJWT, async (req: Request, res: Response)
     const userId = parseInt(req.userId);
 
     const [senderChat, receiverChat] = await createDirect(userId, receiverId);
-
+    if (!senderChat || !receiverChat) {
+      res.status(400).json({ message: 'Chat already exists' });
+      return;
+    }
     res.status(200).json(senderChat);
 
     // Send socket-direct-open event to the receiver

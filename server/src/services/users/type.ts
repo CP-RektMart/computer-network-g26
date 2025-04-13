@@ -7,6 +7,7 @@ export interface UserDto {
   email: string;
   registeredAt: Date | undefined;
   lastLoginAt: Date | undefined;
+  isOnline: boolean;
 }
 
 // ParticipantDto interface extends UserDto and adds additional properties related to chat participation

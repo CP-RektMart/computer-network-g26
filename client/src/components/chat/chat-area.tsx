@@ -1,57 +1,40 @@
 import { useEffect, useRef, useState } from 'react'
 import { Edit, Menu, MoreVertical, Send, Trash2 } from 'lucide-react'
-import type React from 'react'
-
-import type { Chat, Message, User } from '@/lib/types'
-import { DotPattern } from '@/components/ui/dot-pattern'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import type { Message } from '@/lib/types'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { DotPattern } from '@/components/ui/dot-pattern'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Badge } from '@/components/ui/badge'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import { formatTimestamp } from './chat-sidebar'
+import { useChat } from '@/context/chat-context'
+import { useUser } from '@/context/user-context'
+import { formatDistanceToNow } from 'date-fns'
 
 interface ChatAreaProps {
-  chat: Chat | null
-  messages: Message[]
-  currentUser: User
-  messageCount: number,
-  fetchMessageLimit: number,
-  chatAreaScrollDown: boolean,
-  setChatAreaScrollDown: (scrollDown: boolean) => void,
-  fetchMessages: (chatId: string, limit?: number, before?: string) => void
-  onSendMessage: (text: string) => void
-  onEditMessage: (messageId: string, newText: string) => void
-  onDeleteMessage: (messageId: string) => void
   setIsMobileMenuOpen: (open: boolean) => void
 }
 
-export default function ChatArea({
-  chat,
-  messages,
-  currentUser,
-  messageCount,
-  fetchMessageLimit,
-  chatAreaScrollDown,
-  setChatAreaScrollDown,
-  fetchMessages,
-  onSendMessage,
-  onEditMessage,
-  onDeleteMessage,
-  setIsMobileMenuOpen,
-}: ChatAreaProps) {
+export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
+  const { user } = useUser()
+  const { selectedChat, messages, sendMessage, loadingMessages,
+    chatAreaScrollDown, setChatAreaScrollDown, fetchMessageToChat } = useChat()
   const [messageText, setMessageText] = useState('')
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [isNearBottom, setIsNearBottom] = useState(true)
+  const fetchMessageLimit = 20
+
+  const currentChatMessages = selectedChat ? messages[selectedChat.id] : []
 
   useEffect(() => {
     if (chatAreaScrollDown) {
@@ -61,11 +44,10 @@ export default function ChatArea({
   }, [chatAreaScrollDown])
 
   useEffect(() => {
-    console.log('Chat area updated:', chat)
     if (isNearBottom) {
       scrollToBottom()
     }
-  }, [messages, chat])
+  }, [messages, selectedChat])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -74,7 +56,7 @@ export default function ChatArea({
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault()
     if (messageText.trim()) {
-      onSendMessage(messageText)
+      sendMessage(messageText)
       setMessageText('')
     }
   }
@@ -86,7 +68,9 @@ export default function ChatArea({
 
   const saveEditMessage = () => {
     if (editingMessageId && editText.trim()) {
-      onEditMessage(editingMessageId, editText)
+      // This would call the API to edit the message
+      // For now, just update the local state
+      console.log('Edit message:', editingMessageId, editText)
       setEditingMessageId(null)
       setEditText('')
     }
@@ -95,6 +79,12 @@ export default function ChatArea({
   const cancelEditMessage = () => {
     setEditingMessageId(null)
     setEditText('')
+  }
+
+  const handleDeleteMessage = (messageId: string) => {
+    // This would call the API to delete the message
+    // For now, just log it
+    console.log('Delete message:', messageId)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -110,7 +100,34 @@ export default function ChatArea({
     }
   }
 
-  if (!chat) {
+  const handleScroll = async (event: React.UIEvent) => {
+    const target = event.currentTarget as HTMLElement
+    const { scrollTop, scrollHeight, clientHeight } = target
+
+    if (scrollTop == 0 && selectedChat && currentChatMessages.length < selectedChat.messageCount) {
+      console.log('Scrolled to the top!')
+      const prevScrollHeight = target.scrollHeight
+      const firstTimestamp = currentChatMessages[0]?.timestamp
+
+      await fetchMessageToChat(selectedChat.id, fetchMessageLimit, firstTimestamp)
+
+      requestAnimationFrame(() => {
+        const newScrollHeight = target.scrollHeight
+        target.scrollTop = newScrollHeight - prevScrollHeight
+      })
+    }
+
+    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 300;
+
+    if (isNearBottom) {
+      setIsNearBottom(true)
+      console.log('User is near the bottom!');
+    } else {
+      setIsNearBottom(false)
+    }
+  }
+
+  if (!selectedChat) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center bg-gray-50 p-4">
         <div className="text-center">
@@ -132,72 +149,64 @@ export default function ChatArea({
     )
   }
 
-  const handleScroll = async (event: React.UIEvent) => {
-    const target = event.currentTarget as HTMLElement
-    const { scrollTop, scrollHeight, clientHeight } = target
-
-    if (scrollTop == 0 && chat && messages.length < messageCount) {
-      console.log('Scrolled to the top!')
-      const prevScrollHeight = target.scrollHeight
-      const firstTimestamp = messages[0]?.timestamp
-
-      await fetchMessages(chat.id, fetchMessageLimit, firstTimestamp)
-
-      requestAnimationFrame(() => {
-        const newScrollHeight = target.scrollHeight
-        target.scrollTop = newScrollHeight - prevScrollHeight
-      })
-    }
-
-    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 300;
-
-    if (isNearBottom) {
-      setIsNearBottom(true)
-      console.log('User is near the bottom!');
-    } else {
-      setIsNearBottom(false)
-    }
-  }
-
   return (
     <div className="flex flex-1 flex-col bg-white md:border md:border-input md:rounded-2xl">
-      {/* Chat header */}
-      <div className="flex items-center justify-between border-b border-b-input p-4">
-        <div className="flex items-center space-x-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            onClick={() => setIsMobileMenuOpen(true)}
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-          <Avatar>
-            {/* <AvatarImage src={chat.avatar} alt={chat.name} /> */}
-            <AvatarFallback>{chat.name.charAt(0)}</AvatarFallback>
-          </Avatar>
+      {/* Mobile menu toggle */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="md:hidden"
+        onClick={() => setIsMobileMenuOpen(true)}
+      >
+        <Menu className="h-5 w-5" />
+      </Button>
+
+
+      <div className="flex gap-5 p-4">
+        {/* Avatar */}
+        <Avatar>
+          {/* Uncomment if you have avatar URLs */}
+          {/* <AvatarImage src={selectedChat.isGroup ? selectedChat.avatar : otherUser?.avatar} alt="avatar" /> */}
+          <AvatarFallback>
+            {selectedChat.name ? selectedChat.name.charAt(0) : '?'}
+          </AvatarFallback>
+        </Avatar>
+
+        {/* Chat Info */}
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center md:gap-5">
           <div>
             <div className="flex items-center">
-              <h3 className="font-medium">{chat.name}</h3>
-              {chat.isGroup && (
-                <Badge variant="outline" className="ml-2 bg-gray-100 text-xs">
-                  Group • {chat.participants.length} members
-                </Badge>
+              <h3 className="font-medium">{selectedChat.name}</h3>
+
+              {selectedChat.isGroup && (
+                <>
+                  <Badge variant="outline" className="ml-2 bg-gray-100 text-xs">
+                    Group • {selectedChat.participants.length} members
+                  </Badge>
+
+                </>
               )}
-              <span className="ml-2 text-xs text-gray-500">{chat.id}</span>
             </div>
+
             <p className="text-xs text-gray-500">
-              {chat.isGroup
-                ? `${chat.participants.length} participants`
-                : 'Online'}
+              {selectedChat.isGroup
+                ? `${selectedChat.participants.length} participants`
+                : "Direct message"}
             </p>
+
           </div>
+          {selectedChat.isGroup &&
+            <p className="text-xs text-gray-500">
+              {selectedChat.id}
+            </p>
+          }
         </div>
+
       </div>
 
 
       {/* Messages area */}
-      <ScrollArea className="flex-1 overflow-y-auto p-4" onScroll={handleScroll} >
+      <ScrollArea className="flex-1 p-4 h-96" onScroll={handleScroll}>
         <DotPattern
           cr={1.5}
           className={cn(
@@ -205,18 +214,14 @@ export default function ChatArea({
             'md:[mask-image:radial-gradient(900px_circle_at_center,transparent,white)]',
             'opacity-50',
           )}
-
         />
-        <div className="relative z-10  space-y-4">
-          {messages.length > 0 ? (
-            messages.map((message) => {
-              const isCurrentUser = message.senderId === currentUser.id
-              const sender = chat.participants.find(
+        <div className="relative space-y-4">
+          {!loadingMessages && currentChatMessages.length > 0 ? (
+            currentChatMessages.map((message) => {
+              const isCurrentUser = message.senderId === user?.id
+              const sender = selectedChat.participants.find(
                 (p) => p.id === message.senderId,
               )
-              console.log("HHee")
-              console.log(chat.participants)
-              console.log('Sender:', sender)
 
               return (
                 <div
@@ -229,7 +234,7 @@ export default function ChatArea({
                       : 'rounded-lg bg-gray-100 text-gray-900'
                       } overflow-hidden`}
                   >
-                    {!isCurrentUser && chat.isGroup && (
+                    {!isCurrentUser && selectedChat.isGroup && (
                       <div className="border-b border-gray-200 px-4 py-2 text-xs font-medium">
                         {sender?.username || 'Unknown user'}
                       </div>
@@ -248,16 +253,16 @@ export default function ChatArea({
                           />
                           <div className="flex justify-end space-x-2">
                             <Button
+                              variant="outline"
                               size="sm"
-                              variant="ghost"
                               onClick={cancelEditMessage}
                             >
                               Cancel
                             </Button>
                             <Button
                               size="sm"
-                              variant="ghost"
                               onClick={saveEditMessage}
+                              disabled={!editText.trim()}
                             >
                               Save
                             </Button>
@@ -268,12 +273,19 @@ export default function ChatArea({
                           <p className="whitespace-pre-wrap break-words">
                             {message.text}
                           </p>
-                          <div
-                            className={`mt-1 flex items-center justify-between text-xs ${isCurrentUser ? 'text-gray-300' : 'text-gray-500'
-                              }`}
-                          >
-                            <span>{formatTimestamp(message.timestamp)}</span>
-                            {message.isEdited && <span>(edited)</span>}
+                          <div className="mt-1 flex items-center justify-end space-x-2">
+                            <span
+                              className={`text-xs ${isCurrentUser ? 'text-gray-300' : 'text-gray-500'}`}
+                            >
+                              {formatDistanceToNow(new Date(message.timestamp))}
+                            </span>
+                            {/* {message.isEdited && (
+                              <span
+                                className={`text-xs ${isCurrentUser ? 'text-gray-300' : 'text-gray-500'}`}
+                              >
+                                (edited)
+                              </span>
+                            )} */}
                           </div>
                         </div>
                       )}
@@ -300,7 +312,7 @@ export default function ChatArea({
                           Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={() => onDeleteMessage(message.id)}
+                          onClick={() => handleDeleteMessage(message.id)}
                           className="text-red-500 focus:text-red-500"
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
@@ -323,25 +335,26 @@ export default function ChatArea({
 
       {/* Message input */}
       <div className="border-t border-t-input p-4">
-        <form onSubmit={handleSendMessage} className="flex space-x-2">
-          <Textarea
-            placeholder="Type a message... (Shift+Enter for new line)"
+        <form
+          onSubmit={handleSendMessage}
+          className="flex space-x-2 items-center"
+        >
+          <Input
+            placeholder="Type a message..."
             value={messageText}
             onChange={(e) => setMessageText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className="flex-1 min-h-10 max-h-52 resize-y py-2 text-sm md:text-base"
-            rows={1}
+            className="flex-1 h-10 py-2 px-4 bg-gray-100 rounded-full border-none text-sm md:text-base"
           />
           <Button
             type="submit"
             disabled={!messageText.trim()}
-            className="self-end"
-            size="lg"
+            className="rounded-full"
+            size="icon"
           >
             <Send className="h-4 w-4" />
           </Button>
         </form>
       </div>
-    </div>
+    </div >
   )
 }

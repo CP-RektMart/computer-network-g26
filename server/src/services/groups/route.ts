@@ -17,7 +17,7 @@ router.use(protect);
 export const validateCreateGroup = [
   body('groupName').isString().notEmpty().withMessage('Group name is required'),
   body('description').optional().isString().withMessage('Description must be a string'),
-  body('participantIds').optional().isArray({ min: 1 }).withMessage('participantIds must be a non-empty array'),
+  body('participantIds').optional().isArray().withMessage('participantIds must be a non-empty array'),
   body('participantIds.*').optional().isInt().withMessage('Each participantIds must be an integer'),
 
   (req: Request, res: Response, next: NextFunction) => {
@@ -47,9 +47,22 @@ router.post('/', AuthenticateJWT, validateCreateGroup, async (req: Request, res:
       participantIds.push(userId);
     }
 
-    const newGroup = await createGroup(groupName, description, userId, participantIds);
+    const newGroupChat = await createGroup(groupName, description, userId, participantIds);
 
-    res.status(201).json(newGroup);
+    newGroupChat.participants.forEach((participant) => {
+      if (participant.id !== userId) {
+        const socketIds = getUserSockets(participant.id);
+        socketIds.forEach((id) => {
+          const socket = io.sockets.sockets.get(id);
+          if (socket) {
+            socket.join(newGroupChat.id);
+            socket.emit(channelName.groupOpen, socketResponse('ok').withBody(newGroupChat));
+          }
+        });
+      }
+    });
+
+    res.status(201).json(newGroupChat);
   } catch (error) {
     console.error('Error creating group:', error);
     res.status(500).json({ message: 'Internal server error' });
