@@ -48,7 +48,6 @@ export const useFetchUserData = (
             (p: any) => ({
               id: p.id,
               username: p.name,
-              avatar: p.avatar,
               role: p.role,
               email: p.email,
               lastLoginAt: p.lastLoginAt,

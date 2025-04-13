@@ -7,7 +7,7 @@ import { getToken, useUser } from '@/context/user-context'
 import { Socket } from 'socket.io-client'
 import { useFetchUserData } from '@/action/fetchUserData'
 import { useSocketConnection } from '@/action/socketConnection'
-import { fetchRoomMessages, useRoomMessageHandler } from '@/action/messageAction'
+import { fetchRoomMessages, useRoomMessageHandler } from '@/action/roomAction'
 
 // Route setup for the chat component
 export const Route = createFileRoute('/')({
@@ -42,10 +42,13 @@ function RouteComponent() {
   useRoomMessageHandler(
     socketRef,
     String(user?.id),
-    selectedChat?.id,
+    selectedChat,
+    setSelectedChat,
+    chats,
+    messages,
     setMessages,
     setChats,
-    setChatAreaScrollDown
+    setChatAreaScrollDown,
   )
 
   const fetchMessages = async (chatId: string, limit?: number, before?: string) => {
@@ -64,10 +67,25 @@ function RouteComponent() {
           timestamp: message.timestamp,
           isEdited: false,
         };
-        setMessages((prevMessages) => ({
-          ...prevMessages,
-          [chatId]: [mappedMessage, ...(prevMessages[chatId] || [])],
-        }));
+        setMessages((prevMessages) => {
+          const existingMessages = prevMessages[chatId] || [];
+          const messageIndex = existingMessages.findIndex((msg) => msg.id === mappedMessage.id);
+
+          let updatedMessages;
+          if (messageIndex !== -1) {
+            // Replace the existing message
+            updatedMessages = [...existingMessages];
+            updatedMessages[messageIndex] = mappedMessage;
+          } else {
+            // Prepend new message
+            updatedMessages = [mappedMessage, ...existingMessages];
+          }
+
+          return {
+            ...prevMessages,
+            [chatId]: updatedMessages,
+          };
+        });
       });
     } catch (error) {
       console.error('Error fetching messages:', error);
@@ -99,11 +117,15 @@ function RouteComponent() {
   };
 
   const handleSelectChat = async (chat: Chat) => {
+    console.log('Selected chat:', chat);
     setSelectedChat(chat);
     // Mark messages as read
     setChats(chats.map((c) => (c.id === chat.id ? { ...c, unread: 0 } : c)));
     setIsMobileMenuOpen(false);
 
+    if (socketRef.current) {
+      socketRef.current.emit('socket-room-opening', { destination: chat.id });
+    }
     if (messages[chat.id]?.length < messageMinimum) {
       await fetchMessages(chat.id, fetchMessageLimit, messages[chat.id]?.[0]?.timestamp || undefined);
     }
@@ -181,6 +203,10 @@ function RouteComponent() {
         messageCount: newGroup.messageCount,
       };
 
+      if (socketRef.current) {
+        socketRef.current.emit("socket-room-connect", { destination: newChat.id });
+      }
+
       setChats([newChat, ...chats]);
       setSelectedChat(newChat);
       setMessages({
@@ -208,6 +234,17 @@ function RouteComponent() {
 
       const chat = await response.json();
 
+      const participants: Participant[] = chat.participants.map((p: any) => ({
+        id: p.id,
+        username: p.name,
+        role: p.role,
+        email: p.email,
+        lastLoginAt: p.lastLoginAt,
+        registeredAt: p.registeredAt,
+        isOnline: p.isOnline,
+        joinedAt: p.joinedAt,
+      }))
+
       const mappedChat: Chat = {
         id: chat.id,
         name: chat.name,
@@ -216,7 +253,7 @@ function RouteComponent() {
         timestamp: chat.lastMessage?.timestamp,
         // avatar: chat.avatar,
         unread: chat.unread,
-        participants: chat.participants,
+        participants: participants,
         messageCount: chat.messageCount,
       }
 
@@ -230,16 +267,23 @@ function RouteComponent() {
       }))
 
       setChats((prevChats) => {
-        const chatExists = prevChats.some((chat) => chat.id === mappedChat.id);
+        const chatIndex = prevChats.findIndex((chat) => chat.id === mappedChat.id);
 
-        if (chatExists) {
-          return prevChats.map((chat) =>
-            chat.id === mappedChat.id
-              ? { ...chat, lastMessage: mappedChat.lastMessage, timestamp: mappedChat.timestamp }
-              : chat
-          );
+        if (chatIndex !== -1) {
+          const updatedChats = [...prevChats];
+          updatedChats[chatIndex] = { ...prevChats[chatIndex], ...mappedChat };
+
+          // Set selected chat to the updated one
+          setSelectedChat(updatedChats[chatIndex]);
+
+          return updatedChats;
         } else {
-          return [...prevChats, mappedChat];
+          const newChats = [...prevChats, mappedChat];
+
+          // Set selected chat to the newly added one
+          setSelectedChat(mappedChat);
+
+          return newChats;
         }
       });
 

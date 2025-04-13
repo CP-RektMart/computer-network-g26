@@ -61,7 +61,7 @@ export default function ChatArea({
   }, [chatAreaScrollDown])
 
   useEffect(() => {
-    console.log(chat)
+    console.log('Chat area updated:', chat)
     if (isNearBottom) {
       scrollToBottom()
     }
@@ -184,6 +184,7 @@ export default function ChatArea({
                   Group • {chat.participants.length} members
                 </Badge>
               )}
+              <span className="ml-2 text-xs text-gray-500">{chat.id}</span>
             </div>
             <p className="text-xs text-gray-500">
               {chat.isGroup
@@ -213,6 +214,9 @@ export default function ChatArea({
               const sender = chat.participants.find(
                 (p) => p.id === message.senderId,
               )
+              console.log("HHee")
+              console.log(chat.participants)
+              console.log('Sender:', sender)
 
               return (
                 <div

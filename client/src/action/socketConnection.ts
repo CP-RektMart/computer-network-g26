@@ -28,10 +28,6 @@ export const useSocketConnection = (
         console.log('Socket Room Connect:', res)
       })
 
-      socket.on('socket-group-update', (res: any) => {
-        console.log('Socket Group Update:', res)
-      })
-
       // Cleanup socket on unmount
       return () => {
         if (socketRef.current) {

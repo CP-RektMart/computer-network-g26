@@ -90,27 +90,29 @@ export default function ChatSidebar({
 
   // Mock users for group creation
   const mockUsers: User[] = [
-    {
-      id: 2,
-      username: 'Jane Smith',
-      email: 'jane@example.com',
-    },
-    {
-      id: 3,
-      username: 'Mike Johnson',
-      email: 'mike@example.com',
-    },
-    {
-      id: 4,
-      username: 'Sarah Williams',
-      email: 'sarah@example.com',
-    },
+    // {
+    //   id: 2,
+    //   username: 'Jane Smith',
+    //   email: 'jane@example.com',
+    // },
+    // {
+    //   id: 3,
+    //   username: 'Mike Johnson',
+    //   email: 'mike@example.com',
+    // },
+    // {
+    //   id: 4,
+    //   username: 'Sarah Williams',
+    //   email: 'sarah@example.com',
+    // },
   ]
 
   const [selectedUsers, setSelectedUsers] = useState<User[]>([])
 
   const handleCreateGroup = () => {
-    if (newGroupName.trim() && selectedUsers.length > 0) {
+    if (newGroupName.trim()
+      // && selectedUsers.length > 0
+    ) {
       onCreateGroup(newGroupName, selectedUsers)
       setNewGroupName('')
       setSelectedUsers([])
@@ -292,7 +294,8 @@ export default function ChatSidebar({
                       className="w-full"
                       onClick={handleCreateGroup}
                       disabled={
-                        !newGroupName.trim() || selectedUsers.length === 0
+                        !newGroupName.trim()
+                        // || selectedUsers.length === 0
                       }
                     >
                       Create Group
@@ -344,7 +347,7 @@ export default function ChatSidebar({
           </div>
 
           {/* Chat list */}
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1 overflow-auto">
             <div className="space-y-1 p-2">
               {filteredChats.length > 0 ? (
                 filteredChats.map((chat) => (
