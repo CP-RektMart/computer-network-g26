@@ -18,7 +18,7 @@ export const userSocketMap = new Map<number, string[]>();
 // {
 //   status: string, // The status of the message (ok or error)
 //   msg: string, // The status message (optional)
-//   error: string, // The error message (optional) 
+//   error: string, // The error message (optional)
 //   destination: string, // The room ID to connect to (optional)
 //   body: any, // The message body to send (optional)
 // }
@@ -46,11 +46,15 @@ export const channelName = {
 
   // Channel for sending user update to the server (direct & group)
   // [to send] the user update to the user or to the group members
-  userUpdate: 'socket-from-user-update',
+  userUpdate: 'socket-user-update',
 
   // Channel for sending group update to the server (group only)
   // [to send] the group update to the user or to the group members
-  groupUpdate: 'socket-from-group-update',
+  groupUpdate: 'socket-group-update',
+
+  // Channel to notify the receiver that a group message room has been opened
+  // [to send] the group message room to the receiver
+  groupOpen: 'socket-group-open',
 
   // Channel to notify the receiver that a direct message room has been opened
   // [to send] the direct message room to the receiver

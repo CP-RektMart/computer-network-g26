@@ -1,6 +1,6 @@
-import React, { createContext, useContext } from 'react'
+import React, { createContext, useContext, useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import type { User } from '@/lib/types'
 
 interface UserContextType {
@@ -17,6 +17,7 @@ const UserContext = createContext<UserContextType | undefined>(undefined)
 const saveToken = (token: string) => {
   localStorage.setItem('auth_token', token)
 }
+
 export const getToken = (): string | null => {
   return localStorage.getItem('auth_token')
 }
@@ -27,41 +28,30 @@ const removeToken = () => {
 
 // API functions
 const fetchCurrentUser = async (): Promise<User | null> => {
-  const token = getToken();
+  const token = getToken()
 
-  if (!token) {
-    console.warn('No token found.');
-    return null;
+  if (!token) return null
+
+  const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users/me`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+
+  if (!response.ok) {
+    return null
   }
+  const user = await response.json()
 
-  try {
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users/me`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      console.warn('Failed to fetch user:', response.status, response.statusText);
-      return null;
-    }
-
-    const data = await response.json();
-
-    const user: User = {
-      id: data.id,
-      username: data.name,
-      email: data.email,
-      lastLoginAt: data.lastLoginAt,
-      registeredAt: data.registeredAt,
-    }
-    return user;
-  } catch (error) {
-    console.error('Error fetching user:', error);
-    return null;
-  }
-};
+  return {
+    id: user.id,
+    username: user.name,
+    email: user.email,
+    registeredAt: user.registeredAt,
+    lastLoginAt: user.lastLoginAt,
+    isOnline: user.isOnline,
+  } as User
+}
 
 const loginUser = async ({
   username,
@@ -138,20 +128,38 @@ const updateUserUsername = async (newUsername: string) => {
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const queryClient = useQueryClient()
   const navigate = useNavigate()
 
-  // Query to fetch the current user
-  const { data: user, isLoading: loading } = useQuery({
-    queryKey: ['user'],
-    queryFn: fetchCurrentUser,
-  })
+  const [user, setUser] = useState<User | null | undefined>(undefined)
+  const [loading, setLoading] = useState(true)
+
+  // Fetch user on initial load
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        setLoading(true)
+        const userData = await fetchCurrentUser()
+        setUser(userData)
+      } catch (error) {
+        console.error('Error loading user:', error)
+        setUser(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadUser()
+  }, [])
 
   // Login mutation
   const loginMutation = useMutation({
     mutationFn: loginUser,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user'] })
+    onSuccess: async () => {
+      // Fetch the user data after successful login
+      setLoading(true)
+      const userData = await fetchCurrentUser()
+      setUser(userData)
+      setLoading(false)
       navigate({ to: '/' })
     },
   })
@@ -160,7 +168,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
   const logoutMutation = useMutation({
     mutationFn: logoutUser,
     onSuccess: () => {
-      queryClient.setQueryData(['user'], null)
+      setUser(null)
       navigate({ to: '/login' })
     },
   })
@@ -169,8 +177,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
   const updateUsernameMutation = useMutation({
     mutationFn: updateUserUsername,
     onSuccess: (data) => {
-      queryClient.setQueryData(['user'], (oldData: User | null) =>
-        oldData ? { ...oldData, username: data.user.username } : null,
+      setUser((prev) =>
+        prev ? { ...prev, username: data.user.username } : null,
       )
     },
   })

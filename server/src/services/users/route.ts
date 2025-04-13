@@ -1,11 +1,16 @@
 import * as express from 'express';
 import { body, validationResult } from 'express-validator';
 
-import { registerUser, getUserById, getUserByUsername, loginUser, updateUsername, getChat } from './controller';
+import { registerUser, getUserById, getUserByUsername, loginUser, updateUsername, getChat, getAllUsers } from './controller';
 import { validateRegisterUser, protect } from '@/middleware/auth';
 import { getSignedJwtToken } from './utils';
 
 const router = express.Router();
+
+router.get('/', async (req: express.Request, res: express.Response): Promise<void> => {
+  const users = await getAllUsers();
+  res.status(200).json(users);
+});
 
 /**
  * @swagger

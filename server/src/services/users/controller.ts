@@ -39,6 +39,7 @@ export const registerUser = async (name: string, email: string, password: string
     name: user.name,
     registeredAt: user.registeredAt,
     lastLoginAt: undefined,
+    isOnline: user.isOnline,
   };
 };
 
@@ -63,7 +64,30 @@ export const loginUser = async (name: string, password: string): Promise<UserDto
     name: user.name,
     registeredAt: user.registeredAt,
     lastLoginAt: user.lastLoginAt,
+    isOnline: user.isOnline,
   };
+};
+
+export const getAllUsers = async (): Promise<UserDto[]> => {
+  const users = await prisma.user.findMany({
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      registeredAt: true,
+      lastLoginAt: true,
+      isOnline: true,
+    },
+  });
+
+  return users.map((user) => ({
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    registeredAt: user.registeredAt,
+    lastLoginAt: user.lastLoginAt,
+    isOnline: user.isOnline,
+  }));
 };
 
 // Retrieves a user's details by their ID and returns them if found, otherwise returns null.
@@ -76,6 +100,7 @@ export const getUserById = async (id: number): Promise<UserDto | null> => {
       name: true,
       registeredAt: true,
       lastLoginAt: true,
+      isOnline: true,
     },
   });
 
@@ -87,6 +112,7 @@ export const getUserById = async (id: number): Promise<UserDto | null> => {
     email: user.email,
     registeredAt: user.registeredAt,
     lastLoginAt: user.lastLoginAt,
+    isOnline: user.isOnline,
   };
 };
 
@@ -100,6 +126,7 @@ export const getUserByUsername = async (name: string): Promise<UserDto | null> =
       name: true,
       registeredAt: true,
       lastLoginAt: true,
+      isOnline: true,
     },
   });
 
@@ -111,6 +138,7 @@ export const getUserByUsername = async (name: string): Promise<UserDto | null> =
     email: user.email,
     registeredAt: user.registeredAt,
     lastLoginAt: user.lastLoginAt,
+    isOnline: user.isOnline,
   };
 };
 
