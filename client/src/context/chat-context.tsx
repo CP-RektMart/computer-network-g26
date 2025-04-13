@@ -3,6 +3,7 @@ import { io } from 'socket.io-client'
 import { getToken, useUser } from './user-context'
 import type { Socket } from 'socket.io-client'
 import type { Chat, Message, Participant, User } from '@/lib/types'
+import { useChatHelper, useChatMessagesHelper } from '@/lib/helpers'
 
 interface ChatContextType {
     socketRef: React.RefObject<Socket | null>
@@ -28,13 +29,17 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     children,
 }) => {
     const { user } = useUser()
-    const socketRef = useRef<Socket | null>(null);
     const [chats, setChats] = useState<Chat[]>([])
-    const [selectedChat, setSelectedChat] = useState<Chat | null>(null)
+    const { addChat, updateChat, findChat, addOrUpdateChat, addParticipantOrUpdate } = useChatHelper(chats, setChats)
     const [messages, setMessages] = useState<Record<string, Message[]>>({})
+    const { initChatMessages, addOrUpdateMessageAtFirst, addOrUpdateMessageAtLast } = useChatMessagesHelper(messages, setMessages);
+
+    const socketRef = useRef<Socket | null>(null);
+    const [selectedChat, setSelectedChat] = useState<Chat | null>(null)
     const [loadingChats, setLoadingChats] = useState(false)
     const [loadingMessages, setLoadingMessages] = useState(false)
     const [chatAreaScrollDown, setChatAreaScrollDown] = useState(false)
+
     const messageMinimum = 20;
     const fetchMessageLimit = 20;
 
@@ -86,7 +91,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                             registeredAt: p.registeredAt,
                             isOnline: p.isOnline,
                             joinedAt: p.joinedAt,
-                        }),
+                        } as Participant),
                     )
 
                     const otherParticipants = participants.filter(
@@ -102,7 +107,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                         unread: chat.unread,
                         participants,
                         messageCount: chat.messageCount,
-                    }
+                    } as Chat
                 })
 
                 setChats(chats)
@@ -110,10 +115,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                 // Connect to each chat room socket
                 for (const chat of chats) {
                     connectToChatRoom(chat.id)
-                    setMessages((prevMessages) => ({
-                        ...prevMessages,
-                        [chat.id]: [],
-                    }))
+                    initChatMessages(chat.id, [])
                 }
             } catch (error) {
                 console.error('Error fetching chat data:', error)
@@ -175,13 +177,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                     isEdited: false,
                 }
 
-                addMessageToChat(chatId, newMessage)
+                addOrUpdateMessageAtLast(chatId, newMessage)
                 updateChatLastMessage(chatId, newMessage)
 
                 if (newMessage.senderId === user?.id) {
                     setChatAreaScrollDown(true)
                 }
-
             }
         })
 
@@ -204,35 +205,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                     lastLoginAt: participant.lastLoginAt,
                     registeredAt: participant.registeredAt,
                 }
-
-                setChats((prevChats) =>
-                    prevChats.map((chat) => {
-                        if (chat.id !== chatId) return chat
-
-                        const existingParticipant = chat.participants.find(
-                            (p) => p.id === mappedParticipant.id,
-                        )
-                        let updatedParticipants: Participant[]
-
-                        if (existingParticipant) {
-                            // Update existing participant
-                            updatedParticipants = chat.participants.map((p) =>
-                                p.id === mappedParticipant.id ? mappedParticipant : p,
-                            )
-                        } else {
-                            // Add new participant
-                            updatedParticipants = [...chat.participants, mappedParticipant]
-                        }
-                        if (selectedChat?.id === chatId) {
-                            setSelectedChat(chat)
-                        }
-
-                        return {
-                            ...chat,
-                            participants: updatedParticipants,
-                        }
-                    }),
-                )
+                addParticipantOrUpdate(chatId, mappedParticipant)
             }
         })
 
@@ -253,7 +226,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                 registeredAt: p.registeredAt,
                 isOnline: p.isOnline,
                 joinedAt: p.joinedAt,
-            }))
+            } as Participant))
 
             const otherUser = participants.find((p) => p.id !== user?.id)
 
@@ -273,12 +246,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                 socketRef.current.emit("socket-room-connect", { destination: newChat.id });
             }
 
-            setChats([mappedChat, ...chats]);
-            setSelectedChat(mappedChat);
-            setMessages({
-                ...messages,
-                [mappedChat.id]: [],
-            });
+
+            addOrUpdateChat(mappedChat)
+            initChatMessages(mappedChat.id, [])
         })
 
 
@@ -317,12 +287,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                 socketRef.current.emit("socket-room-connect", { destination: newChat.id });
             }
 
-            setChats([mappedChat, ...chats]);
-            setSelectedChat(mappedChat);
-            setMessages({
-                ...messages,
-                [mappedChat.id]: [],
-            });
+            addOrUpdateChat(mappedChat)
+            initChatMessages(mappedChat.id, [])
         })
 
         return () => {
@@ -343,32 +309,16 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         })
     }
 
-    // Add a message to chat history
-    const addMessageToChat = (chatId: string, message: Message) => {
-        setMessages((prev) => {
-            const chatMessages = prev[chatId]
-            return {
-                ...prev,
-                [chatId]: [...chatMessages, message],
-            }
-        })
-    }
-
     // Update chat's last message
     const updateChatLastMessage = (chatId: string, message: Message) => {
-        setChats((prev) =>
-            prev.map((chat) => {
-                if (chat.id === chatId) {
-                    return {
-                        ...chat,
-                        lastMessage: message.text,
-                        timestamp: message.timestamp,
-                        unread: selectedChat?.id === chatId ? 0 : (chat.unread || 0) + 1,
-                    }
-                }
-                return chat
-            }),
-        )
+        const chat = findChat(chatId);
+        if (!chat) return
+        updateChat({
+            id: chatId,
+            lastMessage: message.text,
+            timestamp: message.timestamp,
+            unread: selectedChat?.id === chatId ? 0 : (chat.unread || 0) + 1,
+        })
     }
 
     // Select a chat
@@ -432,6 +382,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             }
 
             const newDirectChat = await response.json();
+            if (newDirectChat.isExist) {
+                const chat = findChat(newDirectChat.id)
+                if (chat) {
+                    setSelectedChat(chat);
+                }
+                return;
+            }
+
             console.log('New direct created:', newDirectChat);
 
             const participants: Participant[] = newDirectChat.participants.map((p: any) => ({
@@ -463,12 +421,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                 socketRef.current.emit("socket-room-connect", { destination: newChat.id });
             }
 
-            setChats([newChat, ...chats]);
+            addChat(newChat)
             setSelectedChat(newChat);
-            setMessages({
-                ...messages,
-                [newChat.id]: [],
-            });
+            initChatMessages(newChat.id, [])
         } catch (error) {
             console.error('Error creating direct chat:', error);
         }
@@ -523,12 +478,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                 socketRef.current.emit("socket-room-connect", { destination: newChat.id });
             }
 
-            setChats([newChat, ...chats]);
+            addChat(newChat)
             setSelectedChat(newChat);
-            setMessages({
-                ...messages,
-                [newChat.id]: [],
-            });
+            initChatMessages(newChat.id, [])
         } catch (error) {
             console.error('Error creating group:', error);
         }
@@ -577,53 +529,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                 socketRef.current.emit("socket-room-connect", { destination: mappedChat.id });
             }
 
-            setMessages((prevMessages) => ({
-                ...prevMessages,
-                [mappedChat.id]: [],
-            }))
-
-            setChats((prevChats) => {
-                const chatIndex = prevChats.findIndex((chat) => chat.id === mappedChat.id);
-
-                if (chatIndex !== -1) {
-                    const updatedChats = [...prevChats];
-                    updatedChats[chatIndex] = { ...prevChats[chatIndex], ...mappedChat };
-
-                    // Set selected chat to the updated one
-                    setSelectedChat(updatedChats[chatIndex]);
-
-                    return updatedChats;
-                } else {
-                    const newChats = [...prevChats, mappedChat];
-
-                    // Set selected chat to the newly added one
-                    setSelectedChat(mappedChat);
-
-                    return newChats;
-                }
-            });
-
+            addOrUpdateChat(mappedChat)
+            initChatMessages(mappedChat.id, [])
         } catch (error) {
             console.error('Error join group:', error);
         }
     };
-
-    // // Leave the current direct chat
-    // const leaveDirectChat = () => {
-    //     if (!selectedChat || !socket) return
-
-    //     if (!selectedChat.isGroup) {
-    //         leaveDirectConversation(selectedChat.id)
-    //     }
-
-    //     setSelectedChat(null)
-    // }
-
-    // const openDirectConversation = (conversationId: string) => {
-    //     if (!socket) return
-
-    //     socket.emit('socket-direct-open', { conversationId })
-    // }
 
     const fetchMessageToChat = async (chatId: string, limit?: number, before?: string) => {
         const token = getToken();
@@ -643,25 +554,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                     timestamp: message.timestamp,
                     isEdited: false,
                 };
-                setMessages((prevMessages) => {
-                    const existingMessages = prevMessages[chatId] || [];
-                    const messageIndex = existingMessages.findIndex((msg) => msg.id === mappedMessage.id);
-
-                    let updatedMessages;
-                    if (messageIndex !== -1) {
-                        // Replace the existing message
-                        updatedMessages = [...existingMessages];
-                        updatedMessages[messageIndex] = mappedMessage;
-                    } else {
-                        // Prepend new message
-                        updatedMessages = [mappedMessage, ...existingMessages];
-                    }
-
-                    return {
-                        ...prevMessages,
-                        [chatId]: updatedMessages,
-                    };
-                });
+                addOrUpdateMessageAtFirst(chatId, mappedMessage)
             });
             setLoadingChats(false)
         } catch (error) {

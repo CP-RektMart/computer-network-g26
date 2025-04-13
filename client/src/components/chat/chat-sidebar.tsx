@@ -118,7 +118,7 @@ export default function ChatSidebar({
       ? chat.name ?? ''
       : chat.participants?.find(p => currentUser && p.id !== currentUser.id)?.username ?? '';
 
-  
+
     const matchesSearch = resolvedName.toLowerCase().includes(searchQuery.toLowerCase())
     let matchesType = true
     if (chatTypeFilter !== 'all') {
