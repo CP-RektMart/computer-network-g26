@@ -42,7 +42,7 @@ export const createGroup = async (
 
   const mapped: ParticipantDto[] = newRoom.participants.map((p) => ({
     id: p.userId,
-    name: p.user.name,
+    username: p.user.username,
     email: p.user.email,
     joinedAt: p.joinedAt,
     joinAt: p.joinedAt,
@@ -57,7 +57,7 @@ export const createGroup = async (
     id: newGroup.id,
     name: newGroup.name,
     lastMessage: undefined,
-    lastSendAt: undefined,
+    lastSentAt: undefined,
     createAt: newRoom.createdAt,
     type: 'group',
     participants: mapped,
@@ -173,11 +173,10 @@ export const joinGroup = async (userId: number, groupId: string): Promise<[Parti
   const isGroup = room.type === 'group';
 
   const group = isGroup ? await getGroup(room.id) : null;
-  const otherMember = !isGroup ? room.participants.find((m) => m.user.id !== userId) : null;
 
   const mapped: ParticipantDto[] = room.participants.map((p) => ({
     id: p.userId,
-    name: p.user.name,
+    username: p.user.username,
     email: p.user.email,
     joinedAt: p.joinedAt,
     joinAt: p.joinedAt,
@@ -190,11 +189,11 @@ export const joinGroup = async (userId: number, groupId: string): Promise<[Parti
 
   const userChat: UserChatDetailDto = {
     id: room.id,
-    name: isGroup ? group?.name || 'Unknown Group' : otherMember?.user.name || 'Unknown User',
+    name: isGroup ? group?.name || 'Unknown Group' : undefined,
     type: room.type as ChatInfoDto['type'],
     createAt: room.createdAt,
     lastMessage: lastMessage[0],
-    lastSendAt: room.lastSendAt ?? undefined,
+    lastSentAt: room.lastSentAt ?? undefined,
     participants: mapped,
     unread: unreadMessageCount,
     messageCount,
@@ -204,9 +203,9 @@ export const joinGroup = async (userId: number, groupId: string): Promise<[Parti
     {
       id: participant.userId,
       email: participant.user.email,
-      joinAt: participant.joinedAt,
+      joinedAt: participant.joinedAt,
       lastLoginAt: participant.user.lastLoginAt,
-      name: participant.user.name,
+      username: participant.user.username,
       registeredAt: participant.user.registeredAt,
       role: participant.role,
       isOnline: participant.user.isOnline,
@@ -247,6 +246,7 @@ export const leaveGroup = async (userId: number, groupId: string): Promise<Parti
       where: {
         roomId: groupId,
         userId: { not: userId },
+        isLeaved: false,
       },
     });
     if (otherParticipants.length > 0) {
@@ -268,13 +268,13 @@ export const leaveGroup = async (userId: number, groupId: string): Promise<Parti
       newAdmin = {
         id: participant.user.id,
         email: participant.user.email,
-        name: participant.user.name,
+        username: participant.user.username,
         registeredAt: participant.user.registeredAt,
         lastLoginAt: participant.user.lastLoginAt,
         role: participant.role,
         isOnline: participant.user.isOnline,
         isLeaved: participant.isLeaved,
-        joinAt: participant.joinedAt,
+        joinedAt: participant.joinedAt,
       };
     } else {
       deleteGroup(groupId); // If no other participants, delete the group

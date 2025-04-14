@@ -159,7 +159,7 @@ router.post('/:roomId/leave', AuthenticateJWT, async (req: Request, res: Respons
         channelName.groupUpdate,
         socketResponse('ok')
           .destination(roomId)
-          .withBody({ activity: 'update', participant: newAdmin } as GroupUpdateActivityDto)
+          .withBody({ activity: 'update-admin', participant: newAdmin } as GroupUpdateActivityDto)
           .build()
       );
     }

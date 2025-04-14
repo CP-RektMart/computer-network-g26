@@ -6,9 +6,9 @@ import { UserChatDetailDto, UserDto } from './type';
 import { ChatInfoDto, ParticipantDto } from '../rooms/type';
 
 //  Registers a new user. Checks for existing username and email, hashes the password, and saves the user.
-export const registerUser = async (name: string, email: string, password: string): Promise<UserDto> => {
+export const registerUser = async (username: string, email: string, password: string): Promise<UserDto> => {
   const existingUsername = await prisma.user.findUnique({
-    where: { name },
+    where: { username },
   });
   if (existingUsername) {
     throw new Error('Username already exists');
@@ -26,7 +26,7 @@ export const registerUser = async (name: string, email: string, password: string
 
   const user = await prisma.user.create({
     data: {
-      name,
+      username,
       email,
       password: hashedPassword,
       salt,
@@ -36,7 +36,7 @@ export const registerUser = async (name: string, email: string, password: string
   return {
     id: user.id,
     email: user.email,
-    name: user.name,
+    username: user.username,
     registeredAt: user.registeredAt,
     lastLoginAt: undefined,
     isOnline: user.isOnline,
@@ -44,9 +44,9 @@ export const registerUser = async (name: string, email: string, password: string
 };
 
 // Authenticates a user by checking the username and password, and returns user details if valid.
-export const loginUser = async (name: string, password: string): Promise<UserDto> => {
+export const loginUser = async (username: string, password: string): Promise<UserDto> => {
   const user = await prisma.user.findUnique({
-    where: { name },
+    where: { username },
   });
 
   if (!user) {
@@ -61,7 +61,7 @@ export const loginUser = async (name: string, password: string): Promise<UserDto
   return {
     id: user.id,
     email: user.email,
-    name: user.name,
+    username: user.username,
     registeredAt: user.registeredAt,
     lastLoginAt: user.lastLoginAt,
     isOnline: user.isOnline,
@@ -73,7 +73,7 @@ export const getAllUsers = async (): Promise<UserDto[]> => {
     select: {
       id: true,
       email: true,
-      name: true,
+      username: true,
       registeredAt: true,
       lastLoginAt: true,
       isOnline: true,
@@ -83,7 +83,7 @@ export const getAllUsers = async (): Promise<UserDto[]> => {
   return users.map((user) => ({
     id: user.id,
     email: user.email,
-    name: user.name,
+    username: user.username,
     registeredAt: user.registeredAt,
     lastLoginAt: user.lastLoginAt,
     isOnline: user.isOnline,
@@ -97,7 +97,7 @@ export const getUserById = async (id: number): Promise<UserDto | null> => {
     select: {
       id: true,
       email: true,
-      name: true,
+      username: true,
       registeredAt: true,
       lastLoginAt: true,
       isOnline: true,
@@ -108,7 +108,7 @@ export const getUserById = async (id: number): Promise<UserDto | null> => {
 
   return {
     id: user.id,
-    name: user.name,
+    username: user.username,
     email: user.email,
     registeredAt: user.registeredAt,
     lastLoginAt: user.lastLoginAt,
@@ -117,13 +117,13 @@ export const getUserById = async (id: number): Promise<UserDto | null> => {
 };
 
 // Retrieves a user's details by their name and returns them if found, otherwise returns null.
-export const getUserByUsername = async (name: string): Promise<UserDto | null> => {
+export const getUserByUsername = async (username: string): Promise<UserDto | null> => {
   const user = await prisma.user.findUnique({
-    where: { name },
+    where: { username },
     select: {
       id: true,
       email: true,
-      name: true,
+      username: true,
       registeredAt: true,
       lastLoginAt: true,
       isOnline: true,
@@ -134,7 +134,7 @@ export const getUserByUsername = async (name: string): Promise<UserDto | null> =
 
   return {
     id: user.id,
-    name: user.name,
+    username: user.username,
     email: user.email,
     registeredAt: user.registeredAt,
     lastLoginAt: user.lastLoginAt,
@@ -151,9 +151,9 @@ export const isUserExistById = async (userId: number): Promise<boolean> => {
 };
 
 // Checks if a user exists by their name and returns true if found, otherwise false.
-export const isUserExistByUsername = async (name: string): Promise<boolean> => {
+export const isUserExistByUsername = async (username: string): Promise<boolean> => {
   const user = await prisma.user.count({
-    where: { name: name },
+    where: { username },
   });
   return user > 0;
 };
@@ -186,13 +186,14 @@ export const getChat = async (userId: number): Promise<UserChatDetailDto[]> => {
           getMessageRecently(chat.id, 1),
           getMessageCount(chat.id),
         ]);
+
         const isGroup = chat.type === 'group';
 
         const group = isGroup ? await getGroup(chat.id) : null;
 
         const mapped: ParticipantDto[] = chat.participants.map((p) => ({
           id: p.userId,
-          name: p.user.name,
+          username: p.user.username,
           email: p.user.email,
           joinedAt: p.joinedAt,
           joinAt: p.joinedAt,
@@ -209,7 +210,7 @@ export const getChat = async (userId: number): Promise<UserChatDetailDto[]> => {
           type: chat.type as ChatInfoDto['type'],
           createAt: chat.createdAt,
           lastMessage: lastMessage[0],
-          lastSendAt: chat.lastSendAt ?? undefined,
+          lastSentAt: chat.lastSentAt ?? undefined,
           participants: mapped,
           unread: unreadMessageCount,
           messageCount,
@@ -245,7 +246,7 @@ export const getChatsId = async (userId: number): Promise<string[]> => {
 export const updateUsername = async (userId: number, newUsername: string): Promise<UserDto> => {
   // Check if the new username already exists
   const existingUsername = await prisma.user.findUnique({
-    where: { name: newUsername },
+    where: { username: newUsername },
   });
 
   if (existingUsername) {
@@ -255,7 +256,7 @@ export const updateUsername = async (userId: number, newUsername: string): Promi
   // Update the username
   const updatedUser = await prisma.user.update({
     where: { id: userId },
-    data: { name: newUsername },
+    data: { username: newUsername },
   });
 
   //TODO: emit socket event to update username in all rooms

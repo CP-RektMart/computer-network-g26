@@ -15,7 +15,7 @@ interface ChatContextType {
     selectChat: (chat: Chat) => void
     sendMessage: (text: string) => void
     joinGroup: (groupId: string) => Promise<void>
-    // leaveDirectChat: () => void
+    leaveGroup: (groupId: string) => void
     createDirect: (receiverId: number) => Promise<void>
     createGroup: (name: string, participants: User[]) => Promise<void>
     chatAreaScrollDown: boolean
@@ -30,18 +30,30 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
     const { user } = useUser()
     const [chats, setChats] = useState<Chat[]>([])
-    const { addChat, updateChat, findChat, addOrUpdateChat, addParticipantOrUpdate } = useChatHelper(chats, setChats)
+    const [selectedChat, setSelectedChat] = useState<Chat | null>(null)
+    const { updateChat, findChat, addOrUpdateChat, addParticipantOrUpdate,
+        sortByLastSentAt, removeChat, updateParticipant } = useChatHelper(chats, setChats)
     const [messages, setMessages] = useState<Record<string, Message[]>>({})
-    const { initChatMessages, addOrUpdateMessageAtFirst, addOrUpdateMessageAtLast } = useChatMessagesHelper(messages, setMessages);
+    const { initChatMessages, addOrUpdateMessageAtFirst,
+        addOrUpdateMessageAtLast } = useChatMessagesHelper(messages, setMessages);
 
     const socketRef = useRef<Socket | null>(null);
-    const [selectedChat, setSelectedChat] = useState<Chat | null>(null)
     const [loadingChats, setLoadingChats] = useState(false)
     const [loadingMessages, setLoadingMessages] = useState(false)
     const [chatAreaScrollDown, setChatAreaScrollDown] = useState(false)
 
     const messageMinimum = 20;
     const fetchMessageLimit = 20;
+
+    useEffect(() => {
+        if (!selectedChat) return
+        const chat = findChat(selectedChat.id)
+        if (chat !== selectedChat) {
+            if (chat) {
+                setSelectedChat(chat)
+            }
+        }
+    }, [chats])
 
     // Connect to socket when user logs in
     useEffect(() => {
@@ -80,54 +92,37 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                     return
                 }
 
-                const chats: Chat[] = data.map((chat: any) => {
-                    const participants: Participant[] = chat.participants.map(
-                        (p: any) => ({
-                            id: p.id,
-                            username: p.name,
-                            role: p.role,
-                            email: p.email,
-                            lastLoginAt: p.lastLoginAt,
-                            registeredAt: p.registeredAt,
-                            isOnline: p.isOnline,
-                            joinedAt: p.joinedAt,
-                        } as Participant),
+                data.forEach((chat: any) => {
+                    const otherParticipants = chat.participants.filter(
+                        (p: Participant) => p.id !== user?.id,
                     )
-
-                    const otherParticipants = participants.filter(
-                        (p) => p.id !== user?.id,
-                    )
-
-                    return {
+                    const formattedChat: Chat = {
                         id: chat.id,
                         name: chat.type === 'group' ? chat.name : otherParticipants[0]?.username,
                         isGroup: chat.type === 'group',
                         lastMessage: chat.lastMessage?.content?.text,
-                        timestamp: chat.lastMessage?.timestamp,
+                        lastSentAt: chat.lastMessage?.sentAt,
                         unread: chat.unread,
-                        participants,
+                        participants: chat.participants,
                         messageCount: chat.messageCount,
-                    } as Chat
-                })
+                    }
 
-                setChats(chats)
-
-                // Connect to each chat room socket
-                for (const chat of chats) {
+                    addOrUpdateChat(formattedChat)
                     connectToChatRoom(chat.id)
                     initChatMessages(chat.id, [])
-                }
+                    return formattedChat
+                })
+                sortByLastSentAt()
             } catch (error) {
                 console.error('Error fetching chat data:', error)
             }
         }
 
         fetchUserData()
-    }, [user])
+    }, [])
 
     useEffect(() => {
         if (!socketRef.current) {
-            console.log('Connecting to socket...')
             socketRef.current = io(import.meta.env.VITE_API_URL, {
                 auth: {
                     token: getToken(),
@@ -173,7 +168,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                     chatId,
                     senderId: message.senderId,
                     text: message.content.text,
-                    timestamp: message.timestamp,
+                    sentAt: message.sentAt,
                     isEdited: false,
                 }
 
@@ -195,17 +190,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             const { destination: chatId, body: updateActivity } = res
             if (updateActivity.activity === 'join') {
                 const participant = updateActivity.participant
-                const mappedParticipant: Participant = {
-                    id: participant.id,
-                    username: participant.name,
-                    isOnline: participant.isOnline,
-                    email: participant.email,
-                    joinedAt: participant.joinAt,
-                    role: participant.role,
-                    lastLoginAt: participant.lastLoginAt,
-                    registeredAt: participant.registeredAt,
-                }
-                addParticipantOrUpdate(chatId, mappedParticipant)
+                addParticipantOrUpdate(chatId, participant)
+            } else if (updateActivity.activity === 'leave') {
+                const leavedUserId = updateActivity.userId
+                updateParticipant(chatId, { id: leavedUserId, isLeaved: true })
+            } else if (updateActivity.activity === 'update-admin') {
+                const participant = updateActivity.participant
+                addParticipantOrUpdate(chatId, participant)
             }
         })
 
@@ -217,27 +208,16 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             }
             const { body: newChat } = res
 
-            const participants: Participant[] = newChat.participants.map((p: any) => ({
-                id: p.id,
-                username: p.name,
-                role: p.role,
-                email: p.email,
-                lastLoginAt: p.lastLoginAt,
-                registeredAt: p.registeredAt,
-                isOnline: p.isOnline,
-                joinedAt: p.joinedAt,
-            } as Participant))
+            const otherUser = newChat.participants.find((p: Participant) => p.id !== user?.id)
 
-            const otherUser = participants.find((p) => p.id !== user?.id)
-
-            const mappedChat: Chat = {
+            const formattedChat: Chat = {
                 id: newChat.id,
                 name: otherUser?.username ?? 'Unknown',
                 isGroup: false,
                 lastMessage: newChat.lastMessage?.context?.text,
-                timestamp: newChat.timestamp,
+                lastSentAt: newChat.lastMessage?.sentAt,
                 unread: newChat.unread,
-                participants,
+                participants: newChat.participants,
                 // avatar: newGroup.name.charAt(0).toUpperCase() + newGroup.name.slice(1),
                 messageCount: newChat.messageCount,
             };
@@ -246,9 +226,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                 socketRef.current.emit("socket-room-connect", { destination: newChat.id });
             }
 
-
-            addOrUpdateChat(mappedChat)
-            initChatMessages(mappedChat.id, [])
+            addOrUpdateChat(formattedChat)
+            initChatMessages(formattedChat.id, [])
         })
 
 
@@ -260,35 +239,24 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             }
             const { body: newChat } = res
 
-            const participants: Participant[] = newChat.participants.map((p: any) => ({
-                id: p.id,
-                username: p.name,
-                role: p.role,
-                email: p.email,
-                lastLoginAt: p.lastLoginAt,
-                registeredAt: p.registeredAt,
-                isOnline: p.isOnline,
-                joinedAt: p.joinedAt,
-            }))
-
-            const mappedChat: Chat = {
+            const formattedChat: Chat = {
                 id: newChat.id,
                 name: newChat.name,
                 isGroup: true,
                 lastMessage: newChat.lastMessage?.context?.text,
-                timestamp: newChat.timestamp,
+                lastSentAt: newChat.lastMessage?.sentAt,
                 unread: newChat.unread,
-                participants,
+                participants: newChat.participants,
                 // avatar: newGroup.name.charAt(0).toUpperCase() + newGroup.name.slice(1),
                 messageCount: newChat.messageCount,
             };
 
             if (socketRef.current) {
-                socketRef.current.emit("socket-room-connect", { destination: newChat.id });
+                socketRef.current.emit("socket-room-connect", { destination: formattedChat.id });
             }
 
-            addOrUpdateChat(mappedChat)
-            initChatMessages(mappedChat.id, [])
+            addOrUpdateChat(formattedChat)
+            initChatMessages(formattedChat.id, [])
         })
 
         return () => {
@@ -302,11 +270,16 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     }, [chats, socketRef.current, user, selectedChat, messages])
 
     const connectToChatRoom = (chatId: string) => {
-        console.log(socketRef.current)
         if (!socketRef.current) return
         socketRef.current.emit('socket-room-connect', {
             destination: chatId,
         })
+    }
+
+    const OpenRoom = (chatId: string) => {
+        if (socketRef.current) {
+            socketRef.current.emit('socket-room-opening', { destination: chatId });
+        }
     }
 
     // Update chat's last message
@@ -316,9 +289,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         updateChat({
             id: chatId,
             lastMessage: message.text,
-            timestamp: message.timestamp,
+            lastSentAt: message.sentAt,
             unread: selectedChat?.id === chatId ? 0 : (chat.unread || 0) + 1,
         })
+        sortByLastSentAt()
     }
 
     // Select a chat
@@ -333,12 +307,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
             // Fetch messages for the selected chat
             setLoadingMessages(true)
+            OpenRoom(chat.id)
 
-            if (socketRef.current) {
-                socketRef.current.emit('socket-room-opening', { destination: chat.id });
-            }
             if (messages[chat.id]?.length < messageMinimum) {
-                await fetchMessageToChat(chat.id, fetchMessageLimit, messages[chat.id]?.[0]?.timestamp || undefined);
+                await fetchMessageToChat(chat.id, fetchMessageLimit, messages[chat.id]?.[0]?.sentAt || undefined);
             }
             setChatAreaScrollDown(true);
 
@@ -361,7 +333,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                     type: "text",
                     text,
                 },
-                timestamp: new Date()
+                sentAt: new Date()
             },
         });
     }
@@ -376,43 +348,31 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                 },
             });
 
-
             if (!response.ok) {
                 throw new Error('Failed to create group');
             }
 
             const newDirectChat = await response.json();
+
+            console.log('New direct created:', newDirectChat);
             if (newDirectChat.isExist) {
                 const chat = findChat(newDirectChat.id)
                 if (chat) {
-                    setSelectedChat(chat);
+                    selectChat(chat)
                 }
                 return;
             }
 
-            console.log('New direct created:', newDirectChat);
-
-            const participants: Participant[] = newDirectChat.participants.map((p: any) => ({
-                id: p.id,
-                username: p.name,
-                role: p.role,
-                email: p.email,
-                lastLoginAt: p.lastLoginAt,
-                registeredAt: p.registeredAt,
-                isOnline: p.isOnline,
-                joinedAt: p.joinedAt,
-            }))
-
-            const otherUser = participants.find((p) => p.id !== user?.id)
+            const otherUser = newDirectChat.participants.find((p: Participant) => p.id !== user?.id)
 
             const newChat: Chat = {
                 id: newDirectChat.id,
                 name: otherUser?.username ?? 'Unknown',
                 isGroup: false,
                 lastMessage: newDirectChat.lastMessage?.context?.text,
-                timestamp: newDirectChat.timestamp,
+                lastSentAt: newDirectChat.lastMessage?.sentAt,
                 unread: newDirectChat.unread,
-                participants,
+                participants: newDirectChat.participants,
                 // avatar: newGroup.name.charAt(0).toUpperCase() + newGroup.name.slice(1),
                 messageCount: newDirectChat.messageCount,
             };
@@ -421,9 +381,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                 socketRef.current.emit("socket-room-connect", { destination: newChat.id });
             }
 
-            addChat(newChat)
-            setSelectedChat(newChat);
+            addOrUpdateChat(newChat)
             initChatMessages(newChat.id, [])
+            selectChat(newChat)
         } catch (error) {
             console.error('Error creating direct chat:', error);
         }
@@ -450,26 +410,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             const newGroup = await response.json();
             console.log('New group created:', newGroup);
 
-            const mappedParticipants: Participant[] = newGroup.participants.map((p: any) => ({
-                id: p.id,
-                username: p.name,
-                role: p.role,
-                email: p.email,
-                lastLoginAt: p.lastLoginAt,
-                registeredAt: p.registeredAt,
-                isOnline: p.isOnline,
-                joinedAt: p.joinedAt,
-            }))
-
-
             const newChat: Chat = {
                 id: newGroup.id,
                 name: newGroup.name,
                 isGroup: true,
                 lastMessage: newGroup.lastMessage?.context?.text,
-                timestamp: newGroup.timestamp,
+                lastSentAt: newGroup.lastMessage?.sentAt,
                 unread: newGroup.unread,
-                participants: mappedParticipants,
+                participants: newGroup.participants,
                 // avatar: newGroup.name.charAt(0).toUpperCase() + newGroup.name.slice(1),
                 messageCount: newGroup.messageCount,
             };
@@ -478,9 +426,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                 socketRef.current.emit("socket-room-connect", { destination: newChat.id });
             }
 
-            addChat(newChat)
-            setSelectedChat(newChat);
+            addOrUpdateChat(newChat)
             initChatMessages(newChat.id, [])
+            selectChat(newChat)
         } catch (error) {
             console.error('Error creating group:', error);
         }
@@ -502,26 +450,15 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
             const chat = await response.json();
 
-            const participants: Participant[] = chat.participants.map((p: any) => ({
-                id: p.id,
-                username: p.name,
-                role: p.role,
-                email: p.email,
-                lastLoginAt: p.lastLoginAt,
-                registeredAt: p.registeredAt,
-                isOnline: p.isOnline,
-                joinedAt: p.joinedAt,
-            }))
-
             const mappedChat: Chat = {
                 id: chat.id,
                 name: chat.name,
                 isGroup: chat.type === 'group',
                 lastMessage: chat.lastMessage?.content?.text,
-                timestamp: chat.lastMessage?.timestamp,
+                lastSentAt: chat.lastMessage?.sentAt,
                 // avatar: chat.avatar,
                 unread: chat.unread,
-                participants: participants,
+                participants: chat.participants,
                 messageCount: chat.messageCount,
             }
 
@@ -530,11 +467,36 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             }
 
             addOrUpdateChat(mappedChat)
-            initChatMessages(mappedChat.id, [])
+            if (!messages[mappedChat.id]) {
+                initChatMessages(mappedChat.id, [])
+            }
         } catch (error) {
             console.error('Error join group:', error);
         }
     };
+
+    const leaveGroup = async (groupId: string) => {
+        try {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groups/${groupId}/leave`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${getToken()}`,
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to leave group');
+            }
+
+            const msg = await response.json();
+            console.log('Left group:', msg);
+
+            setSelectedChat(null);
+            removeChat(groupId)
+        } catch (error) {
+            console.error('Error leave group:', error);
+        }
+    }
 
     const fetchMessageToChat = async (chatId: string, limit?: number, before?: string) => {
         const token = getToken();
@@ -551,7 +513,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                     chatId: chatId,
                     senderId: message.senderId,
                     text: message.content.text,
-                    timestamp: message.timestamp,
+                    sentAt: message.sentAt,
                     isEdited: false,
                 };
                 addOrUpdateMessageAtFirst(chatId, mappedMessage)
@@ -604,6 +566,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                 createDirect,
                 createGroup,
                 joinGroup,
+                leaveGroup,
                 fetchMessageToChat
             }}
         >

@@ -26,7 +26,7 @@ export const getParticipantOfRoom = async (roomId: string): Promise<ParticipantD
 
   const mapped: ParticipantDto[] = participants.map((p) => ({
     id: p.userId,
-    name: p.user.name,
+    username: p.user.username,
     email: p.user.email,
     joinedAt: p.joinedAt,
     joinAt: p.joinedAt,
@@ -73,9 +73,9 @@ export const getParticipant = async (userId: number, roomId: string): Promise<Pa
 
   return {
     id: participant.userId,
-    name: participant.user.name,
+    username: participant.user.username,
     email: participant.user.email,
-    joinAt: participant.joinedAt,
+    joinedAt: participant.joinedAt,
     registeredAt: participant.user.registeredAt,
     role: participant.role,
     lastLoginAt: participant.user.lastLoginAt,
@@ -101,9 +101,10 @@ export const saveMessage = async (roomId: string, senderId: number, sentAt: Date
 
   return {
     id: savedMessage.id,
-    timestamp: savedMessage.sentAt,
+    sentAt: savedMessage.sentAt,
     senderId: savedMessage.senderId,
     content: savedMessage.content as MessageContentDto,
+    isEdited: savedMessage.isEdited,
   };
 };
 
@@ -125,8 +126,9 @@ export const getMessageBefore = async (roomId: string, limit: number, before: Da
   return messages.map((message) => ({
     id: message.id,
     senderId: message.senderId,
-    timestamp: message.sentAt,
+    sentAt: message.sentAt,
     content: message.content as MessageContentDto,
+    isEdited: message.isEdited,
   }));
 };
 
@@ -145,8 +147,9 @@ export const getMessageRecently = async (roomId: string, limit: number): Promise
   return messages.map((message) => ({
     id: message.id,
     senderId: message.senderId,
-    timestamp: message.sentAt,
+    sentAt: message.sentAt,
     content: message.content as MessageContentDto,
+    isEdited: message.isEdited,
   }));
 };
 
@@ -194,19 +197,22 @@ export const getUnreadMessage = async (userId: number, roomId: string): Promise<
   return unreadMessages.map((message) => ({
     id: message.id,
     senderId: message.senderId,
-    timestamp: message.sentAt,
+    sentAt: message.sentAt,
     content: message.content as MessageContentDto,
+    isEdited: message.isEdited,
   }));
 };
 
 // Retrieves unread message count for a user in a specific room since their last seen time
 export const getUnreadMessageCount = async (userId: number, roomId: string): Promise<number> => {
+
   const member = await prisma.roomParticipant.findUnique({
     where: {
       userId_roomId: {
         userId,
         roomId,
       },
+      isLeaved: false,
     },
     select: {
       lastSeemAt: true,
@@ -226,6 +232,7 @@ export const getUnreadMessageCount = async (userId: number, roomId: string): Pro
       },
     },
   });
+
 
   return count;
 };

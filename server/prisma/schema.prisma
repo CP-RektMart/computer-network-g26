@@ -16,7 +16,7 @@ datasource db {
 
 model User {
   id                       Int                 @id @default(autoincrement())
-  name                     String              @unique
+  username                 String              @unique
   email                    String              @unique
   password                 String         
   salt                     String
@@ -28,7 +28,7 @@ model User {
   roomParticipant  RoomParticipant[]  
   messages     Message[]
 
-  @@index([id, name, email])
+  @@index([id, username, email])
 }
 
 model Group {
@@ -44,7 +44,7 @@ model Group {
 model Room {
   id      String        @id @default(uuid())
   createdAt   DateTime      @default(now())
-  lastSendAt  DateTime?      
+  lastSentAt  DateTime?      
   type        String
 
   group       Group?
@@ -74,6 +74,7 @@ model Message {
   roomId   String
   content  Json
   sentAt   DateTime  @default(now())
+  isEdited  Boolean   @default(false)
 
   user     User      @relation(fields: [senderId], references: [id])
   room     Room      @relation(fields: [roomId], references: [id])

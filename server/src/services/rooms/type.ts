@@ -4,7 +4,7 @@ import { JsonObject } from '@prisma/client/runtime/library';
 // ParticipantDto interface extends UserDto and adds additional properties related to chat participation
 export interface ParticipantDto extends UserDto {
   role: string;
-  joinAt: Date | undefined;
+  joinedAt: Date | undefined;
   isOnline: boolean;
   isLeaved: boolean;
 }
@@ -19,7 +19,7 @@ export interface ChatInfoDto {
 // UserChatDetailDto interface extends ChatInfoDto and adds additional properties related to user chat details
 export interface ChatDetailDto extends ChatInfoDto {
   participants: ParticipantDto[];
-  lastSendAt: Date | undefined;
+  lastSentAt: Date | undefined;
   createAt: Date;
   lastMessage: MessageDto | undefined;
   messageCount: number;
@@ -29,8 +29,9 @@ export interface ChatDetailDto extends ChatInfoDto {
 export interface MessageDto {
   id: string;
   senderId: number;
-  timestamp: Date;
+  sentAt: Date;
   content: MessageContentDto;
+  isEdited: boolean;
 }
 
 // MessageContentDto interface represents the content of a message, which can be of different types (text, image, file)

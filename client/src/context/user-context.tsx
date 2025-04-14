@@ -45,7 +45,7 @@ const fetchCurrentUser = async (): Promise<User | null> => {
 
   return {
     id: user.id,
-    username: user.name,
+    username: user.username,
     email: user.email,
     registeredAt: user.registeredAt,
     lastLoginAt: user.lastLoginAt,

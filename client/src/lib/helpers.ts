@@ -138,10 +138,6 @@ export const useChatHelper = (
   chats: Chat[],
   setChats: React.Dispatch<React.SetStateAction<Chat[]>>,
 ) => {
-  const addChat = (chat: Chat) => {
-    setChats((prev) => [...prev, chat])
-  }
-
   const addOrUpdateChat = (chat: Chat) => {
     setChats((prev) => {
       // Check if the chat already exists by its ID
@@ -149,15 +145,17 @@ export const useChatHelper = (
         (existingChat) => existingChat.id === chat.id,
       )
 
+      let updatedChats
       if (chatIndex !== -1) {
         // If the chat exists, update it
-        const updatedChats = [...prev]
+        updatedChats = [...prev]
         updatedChats[chatIndex] = { ...updatedChats[chatIndex], ...chat }
-        return updatedChats
       } else {
         // If the chat doesn't exist, add it to the array
-        return [...prev, chat]
+        updatedChats = [...prev, chat]
       }
+
+      return updatedChats
     })
   }
 
@@ -190,14 +188,17 @@ export const useChatHelper = (
     )
   }
 
-  const updateParticipant = (chatId: string, participant: Participant) => {
+  const updateParticipant = (
+    chatId: string,
+    updated: Partial<Participant> & { id: number },
+  ) => {
     setChats((prev) =>
       prev.map((chat) =>
         chat.id === chatId
           ? {
               ...chat,
               participants: chat.participants.map((p) =>
-                p.id === participant.id ? { ...p, ...participant } : p,
+                p.id === updated.id ? { ...p, ...updated } : p,
               ),
             }
           : chat,
@@ -206,25 +207,28 @@ export const useChatHelper = (
   }
 
   const addParticipantOrUpdate = (chatId: string, participant: Participant) => {
-    setChats((prev) =>
-      prev.map((chat) => {
+    setChats((prevChats) =>
+      prevChats.map((chat) => {
         if (chat.id !== chatId) return chat
 
-        const existingIndex = chat.participants.findIndex(
+        const existingParticipant = chat.participants.find(
           (p) => p.id === participant.id,
         )
+        let updatedParticipants: Participant[]
 
-        if (existingIndex !== -1) {
+        if (existingParticipant) {
           // Update existing participant
-          const updatedParticipants = [...chat.participants]
-          updatedParticipants[existingIndex] = {
-            ...updatedParticipants[existingIndex],
-            ...participant,
-          }
-          return { ...chat, participants: updatedParticipants }
+          updatedParticipants = chat.participants.map((p) =>
+            p.id === participant.id ? participant : p,
+          )
         } else {
           // Add new participant
-          return { ...chat, participants: [...chat.participants, participant] }
+          updatedParticipants = [...chat.participants, participant]
+        }
+
+        return {
+          ...chat,
+          participants: updatedParticipants,
         }
       }),
     )
@@ -245,16 +249,25 @@ export const useChatHelper = (
     )
   }
 
+  const sortByLastSentAt = () => {
+    setChats((prevChats) => {
+      return [...prevChats].sort((a, b) => {
+        const timeA = new Date(a.lastSentAt || 0).getTime()
+        const timeB = new Date(b.lastSentAt || 0).getTime()
+        return timeB - timeA // Descending order
+      })
+    })
+  }
+
   return {
-    addChat,
     addOrUpdateChat,
     updateChat,
     removeChat,
     findChat,
-
     addParticipant,
     updateParticipant,
     removeParticipant,
     addParticipantOrUpdate,
+    sortByLastSentAt,
   }
 }

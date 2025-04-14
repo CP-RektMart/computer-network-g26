@@ -14,6 +14,7 @@ import type { User } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -59,17 +60,7 @@ export default function ChatSidebar({
     if (!response.ok) {
       throw new Error('Failed to fetch users')
     }
-    const users: User[] = data.map((user: any) => ({
-      id: user.id,
-      username: user.name,
-      email: user.email,
-      role: user.role,
-      lastLoginAt: user.lastLoginAt,
-      registeredAt: user.registeredAt,
-      isOnline: user.isOnline,
-    }))
-
-    return users
+    return data
   }
 
   const { data: users } = useQuery({
@@ -84,6 +75,7 @@ export default function ChatSidebar({
       createGroup(newGroupName, selectedUsers)
       setNewGroupName('')
       setSelectedUsers([])
+      setIsMobileMenuOpen(false)
     }
   }
 
@@ -91,6 +83,7 @@ export default function ChatSidebar({
     if (groupIdToJoin.trim()) {
       joinGroup(groupIdToJoin)
       setGroupIdToJoin('')
+      setIsMobileMenuOpen(false)
     }
   }
 
@@ -333,15 +326,15 @@ export default function ChatSidebar({
                           ))}
                       </div>
                     </div>
-                    <Button
-                      className="w-full"
-                      onClick={handleCreateGroup}
-                      disabled={
-                        !newGroupName.trim() || selectedUsers.length === 0
-                      }
-                    >
-                      Create Group
-                    </Button>
+                    <DialogClose asChild>
+                      <Button
+                        className="w-full"
+                        onClick={handleCreateGroup}
+                        disabled={!newGroupName.trim() || selectedUsers.length === 0}
+                      >
+                        Create Group
+                      </Button>
+                    </DialogClose>
                   </div>
                 </DialogContent>
               </Dialog>
@@ -367,13 +360,11 @@ export default function ChatSidebar({
                         onChange={(e) => setGroupIdToJoin(e.target.value)}
                       />
                     </div>
-                    <Button
-                      className="w-full"
+                    <DialogClose className="w-full bg-blue-700 text-white rounded-md p-2 text-center hover:bg-blue-600 transition-colors duration-200 ease-in-out" 
                       onClick={handleJoinGroup}
-                      disabled={!groupIdToJoin.trim()}
-                    >
+                      disabled={!groupIdToJoin.trim()}>
                       Join Group
-                    </Button>
+                    </DialogClose>
                   </div>
                 </DialogContent>
               </Dialog>
@@ -427,7 +418,7 @@ export default function ChatSidebar({
                     </div>
                     <div className="flex flex-col self-start items-end space-y-1">
                       <span className="text-xs text-gray-500">
-                        {chat.timestamp ? formatDistanceToNow(chat.timestamp) : ''}
+                        {chat.lastSentAt ? formatDistanceToNow(chat.lastSentAt) : ''}
                       </span>
                       {chat.unread > 0 && (
                         <Badge className="h-5 w-5 rounded-full p-0 flex items-center justify-center bg-red-500">
