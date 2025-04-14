@@ -243,7 +243,7 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                 {selectedChat.id}
               </p>
             }
-            
+
           </div>
           <div>
             {selectedChat.isGroup && (
