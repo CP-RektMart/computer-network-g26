@@ -28,7 +28,8 @@ export interface ChatDetailDto extends ChatInfoDto {
 // MessageDto interface represents a message in a chat, including its ID, sender ID, timestamp, and content
 export interface MessageDto {
   id: string;
-  senderId: number;
+  senderType: string; // system | user
+  senderId: number | null;
   sentAt: Date;
   content: MessageContentDto;
   isEdited: boolean;

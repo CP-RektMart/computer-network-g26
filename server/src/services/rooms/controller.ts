@@ -85,7 +85,13 @@ export const getParticipant = async (userId: number, roomId: string): Promise<Pa
 };
 
 // Saves a message to the database and returns the saved message data
-export const saveMessage = async (roomId: string, senderId: number, sentAt: Date, content: InputJsonValue): Promise<MessageDto> => {
+export const saveMessage = async (
+  roomId: string,
+  senderType: string,
+  senderId: number | null,
+  sentAt: Date,
+  content: InputJsonValue
+): Promise<MessageDto> => {
   const base = `${sentAt.getTime()}-${senderId}-${roomId}`;
   const uniqueId = crypto.createHash('md5').update(base).digest('hex').slice(0, 16);
 
@@ -96,12 +102,14 @@ export const saveMessage = async (roomId: string, senderId: number, sentAt: Date
       roomId,
       senderId,
       sentAt,
+      senderType,
     },
   });
 
   return {
     id: savedMessage.id,
     sentAt: savedMessage.sentAt,
+    senderType: savedMessage.senderType,
     senderId: savedMessage.senderId,
     content: savedMessage.content as MessageContentDto,
     isEdited: savedMessage.isEdited,
@@ -125,6 +133,7 @@ export const getMessageBefore = async (roomId: string, limit: number, before: Da
 
   return messages.map((message) => ({
     id: message.id,
+    senderType: message.senderType,
     senderId: message.senderId,
     sentAt: message.sentAt,
     content: message.content as MessageContentDto,
@@ -146,6 +155,7 @@ export const getMessageRecently = async (roomId: string, limit: number): Promise
 
   return messages.map((message) => ({
     id: message.id,
+    senderType: message.senderType,
     senderId: message.senderId,
     sentAt: message.sentAt,
     content: message.content as MessageContentDto,
@@ -196,6 +206,7 @@ export const getUnreadMessage = async (userId: number, roomId: string): Promise<
 
   return unreadMessages.map((message) => ({
     id: message.id,
+    senderType: message.senderType,
     senderId: message.senderId,
     sentAt: message.sentAt,
     content: message.content as MessageContentDto,
@@ -205,7 +216,6 @@ export const getUnreadMessage = async (userId: number, roomId: string): Promise<
 
 // Retrieves unread message count for a user in a specific room since their last seen time
 export const getUnreadMessageCount = async (userId: number, roomId: string): Promise<number> => {
-
   const member = await prisma.roomParticipant.findUnique({
     where: {
       userId_roomId: {
@@ -232,7 +242,6 @@ export const getUnreadMessageCount = async (userId: number, roomId: string): Pro
       },
     },
   });
-
 
   return count;
 };

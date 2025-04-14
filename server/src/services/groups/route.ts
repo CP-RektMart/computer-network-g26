@@ -2,12 +2,13 @@ import { createGroup, joinGroup, leaveGroup } from './controller';
 import { AuthenticateJWT } from '@/jwt';
 import { body, validationResult } from 'express-validator';
 import { NextFunction, Request, Response, Router } from 'express';
-import { getRoomType } from '@/services/rooms/controller';
+import { getRoomType, saveMessage } from '@/services/rooms/controller';
 import { getChatsId } from '@/services/users/controller';
 import { channelName, getUserSockets, io } from '@/socket';
 import { socketResponse } from '@/type';
 import { GroupJoinActivityDto, GroupLeaveActivityDto, GroupUpdateActivityDto } from './type';
 import { protect } from '@/middleware/auth';
+import { MessageDto } from '../rooms/type';
 
 const router = Router();
 
@@ -96,19 +97,23 @@ router.post('/:groupId/join', AuthenticateJWT, async (req: Request, res: Respons
     // Broadcast the join activity to all participants in the room
     res.status(200).json(userChat);
 
+    const message = await saveMessage(groupId, 'system', null, new Date(), { type: 'group-join', userId: userId });
+
     // Broadcast the join activity to all participants in the room
-    if (participant) {
-      const chatIds = await getChatsId(userId);
-      chatIds.forEach((id) => {
-        io.to(id).emit(
-          channelName.groupUpdate,
-          socketResponse('ok')
-            .destination(groupId)
-            .withBody({ activity: 'join', participant: participant } as GroupJoinActivityDto)
-            .build()
-        );
-      });
-    }
+    io.to(groupId).emit(
+      channelName.groupUpdate,
+      socketResponse('ok')
+        .destination(groupId)
+        .withBody({ activity: 'join', participant: participant } as GroupJoinActivityDto)
+        .build()
+    );
+    io.to(groupId).emit(
+      channelName.message,
+      socketResponse('ok')
+        .destination(groupId)
+        .withBody(message as MessageDto)
+        .build()
+    );
   } catch (error) {
     console.error('Error while joining room:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -116,22 +121,24 @@ router.post('/:groupId/join', AuthenticateJWT, async (req: Request, res: Respons
 });
 
 // TODO: Add Swagger documentation for this endpoint
-router.post('/:roomId/leave', AuthenticateJWT, async (req: Request, res: Response): Promise<void> => {
+router.post('/:groupId/leave', AuthenticateJWT, async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.userId) {
       res.status(401).json({ message: 'Unauthorized: Missing user ID' });
       return;
     }
-    const roomId = req.params.roomId;
+    const groupId = req.params.groupId;
     const userId = parseInt(req.userId);
 
-    const type = await getRoomType(roomId);
+    const type = await getRoomType(groupId);
     if (type === 'direct') {
       res.status(400).json({ message: 'Invalid room type' });
       return;
     }
-    const newAdmin = await leaveGroup(userId, roomId);
+    const newAdmin = await leaveGroup(userId, groupId);
     res.status(200).json({ message: 'Leaved room successfully' });
+
+    const message = await saveMessage(groupId, 'system', null, new Date(), { type: 'group-leave', userId: userId });
 
     // Remove the socket from the room
     const socketIds = getUserSockets(userId);
@@ -139,26 +146,33 @@ router.post('/:roomId/leave', AuthenticateJWT, async (req: Request, res: Respons
       socketIds.forEach((id) => {
         const socket = io.sockets.sockets.get(id);
         if (socket) {
-          socket.leave(roomId);
+          socket.leave(groupId);
         }
       });
     }
 
     // Broadcast the leave activity to all participants in the room
-    io.to(roomId).emit(
+    io.to(groupId).emit(
       channelName.groupUpdate,
       socketResponse('ok')
-        .destination(roomId)
+        .destination(groupId)
         .withBody({ activity: 'leave', userId } as GroupLeaveActivityDto)
+        .build()
+    );
+    io.to(groupId).emit(
+      channelName.message,
+      socketResponse('ok')
+        .destination(groupId)
+        .withBody(message as MessageDto)
         .build()
     );
 
     // Broadcast the new admin activity to all participants in the room
     if (newAdmin) {
-      io.to(roomId).emit(
+      io.to(groupId).emit(
         channelName.groupUpdate,
         socketResponse('ok')
-          .destination(roomId)
+          .destination(groupId)
           .withBody({ activity: 'update-admin', participant: newAdmin } as GroupUpdateActivityDto)
           .build()
       );

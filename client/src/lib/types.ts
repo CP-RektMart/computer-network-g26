@@ -27,8 +27,13 @@ export interface Chat {
 export interface Message {
   id: string
   chatId: string
-  senderId: number
-  text: string
+  senderType: string
+  senderId: number | null
+  text?: string
+
+  action?: 'group-join' | 'group-leave'
+  targetUserId?: number
+
   sentAt: string
   isEdited: boolean
 }

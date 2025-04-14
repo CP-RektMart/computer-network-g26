@@ -30,21 +30,20 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
     const { user } = useUser()
     const [chats, setChats] = useState<Chat[]>([])
-    const [selectedChat, setSelectedChat] = useState<Chat | null>(null)
     const { updateChat, findChat, addOrUpdateChat, addParticipantOrUpdate,
         sortByLastSentAt, removeChat, updateParticipant } = useChatHelper(chats, setChats)
     const [messages, setMessages] = useState<Record<string, Message[]>>({})
     const { initChatMessages, addOrUpdateMessageAtFirst,
         addOrUpdateMessageAtLast } = useChatMessagesHelper(messages, setMessages);
-
     const socketRef = useRef<Socket | null>(null);
     const [loadingChats, setLoadingChats] = useState(false)
     const [loadingMessages, setLoadingMessages] = useState(false)
     const [chatAreaScrollDown, setChatAreaScrollDown] = useState(false)
-
     const messageMinimum = 20;
     const fetchMessageLimit = 20;
 
+    const [selectedChat, setSelectedChat] = useState<Chat | null>(null)
+    const [waitingSelectedChatId, setWaitingSelectedChat] = useState<string | null>(null)
     useEffect(() => {
         if (!selectedChat) return
         const chat = findChat(selectedChat.id)
@@ -54,6 +53,16 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             }
         }
     }, [chats])
+
+    useEffect(() => {
+        if (waitingSelectedChatId) {
+            const chat = findChat(waitingSelectedChatId)
+            if (chat) {
+                selectChat(chat)
+            }
+            setWaitingSelectedChat(null)
+        }
+    }, [messages])
 
     // Connect to socket when user logs in
     useEffect(() => {
@@ -119,7 +128,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         fetchUserData()
-    }, [])
+    }, [user])
 
     useEffect(() => {
         if (!socketRef.current) {
@@ -166,12 +175,16 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                 const newMessage: Message = {
                     id: message.id,
                     chatId,
+                    senderType: message.senderType,
                     senderId: message.senderId,
                     text: message.content.text,
+                    action: message.senderType === "system" ?  message.content.type : undefined,
+                    targetUserId: message.senderType === "system" ?  message.content.userId : undefined,
+
                     sentAt: message.sentAt,
                     isEdited: false,
                 }
-
+                console.log(newMessage)
                 addOrUpdateMessageAtLast(chatId, newMessage)
                 updateChatLastMessage(chatId, newMessage)
 
@@ -383,7 +396,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
             addOrUpdateChat(newChat)
             initChatMessages(newChat.id, [])
-            selectChat(newChat)
+            setWaitingSelectedChat(newChat.id)
         } catch (error) {
             console.error('Error creating direct chat:', error);
         }
@@ -428,7 +441,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
             addOrUpdateChat(newChat)
             initChatMessages(newChat.id, [])
-            selectChat(newChat)
+            setWaitingSelectedChat(newChat.id)
         } catch (error) {
             console.error('Error creating group:', error);
         }
@@ -467,9 +480,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             }
 
             addOrUpdateChat(mappedChat)
-            if (!messages[mappedChat.id]) {
-                initChatMessages(mappedChat.id, [])
-            }
+            initChatMessages(mappedChat.id, [])
+            setWaitingSelectedChat(mappedChat.id)
         } catch (error) {
             console.error('Error join group:', error);
         }
@@ -493,6 +505,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
             setSelectedChat(null);
             removeChat(groupId)
+
         } catch (error) {
             console.error('Error leave group:', error);
         }
@@ -511,9 +524,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
                 const mappedMessage: Message = {
                     id: message.id,
                     chatId: chatId,
+                    senderType: message.senderType,
                     senderId: message.senderId,
                     text: message.content.text,
                     sentAt: message.sentAt,
+                    action: message.senderType === "system" ?  message.content.type : undefined,
+                    targetUserId: message.senderType === "system" ?  message.content.userId : undefined,
                     isEdited: false,
                 };
                 addOrUpdateMessageAtFirst(chatId, mappedMessage)

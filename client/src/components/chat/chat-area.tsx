@@ -71,7 +71,7 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
 
   const startEditMessage = (message: Message) => {
     setEditingMessageId(message.id)
-    setEditText(message.text)
+    setEditText(message.text || '')
   }
 
   const saveEditMessage = () => {
@@ -243,6 +243,7 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                 {selectedChat.id}
               </p>
             }
+            
           </div>
           <div>
             {selectedChat.isGroup && (
@@ -296,69 +297,83 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                   key={message.id}
                   className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div
-                    className={`max-w-[70%] ${isCurrentUser
-                      ? 'rounded-lg bg-primary text-white'
-                      : 'rounded-lg bg-gray-100 text-gray-900'
-                      } overflow-hidden`}
-                  >
-                    {!isCurrentUser && selectedChat.isGroup && (
-                      <div className="border-b border-gray-200 px-4 py-2 text-xs font-medium">
-                        {sender?.username || 'Unknown user'}
-                      </div>
-                    )}
-
-                    <div className="p-4">
-                      {editingMessageId === message.id ? (
-                        <div className="space-y-2">
-                          <Textarea
-                            value={editText}
-                            onChange={(e) => setEditText(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            autoFocus
-                            className="bg-white text-gray-900 min-h-[100px] resize-y"
-                            placeholder="Edit your message..."
-                          />
-                          <div className="flex justify-end space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={cancelEditMessage}
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={saveEditMessage}
-                              disabled={!editText.trim()}
-                            >
-                              Save
-                            </Button>
-                          </div>
+                  {message.senderType === "user" ? (
+                    <div
+                      className={`max-w-[70%] ${isCurrentUser
+                        ? 'rounded-lg bg-primary text-white'
+                        : 'rounded-lg bg-gray-100 text-gray-900'
+                        } overflow-hidden`}
+                    >
+                      {!isCurrentUser && selectedChat.isGroup && (
+                        <div className="border-b border-gray-200 px-4 py-2 text-xs font-medium">
+                          {sender?.username || 'Unknown user'}
                         </div>
-                      ) : (
-                        <div>
-                          <p className="whitespace-pre-wrap break-words">
-                            {message.text}
-                          </p>
-                          <div className="mt-1 flex items-center justify-end space-x-2">
-                            <span
-                              className={`text-xs ${isCurrentUser ? 'text-gray-300' : 'text-gray-500'}`}
-                            >
-                              {formatDistanceToNow(new Date(message.sentAt))}
-                            </span>
-                            {/* {message.isEdited && (
+                      )}
+
+                      <div className="p-4">
+                        {editingMessageId === message.id ? (
+                          <div className="space-y-2">
+                            <Textarea
+                              value={editText}
+                              onChange={(e) => setEditText(e.target.value)}
+                              onKeyDown={handleKeyDown}
+                              autoFocus
+                              className="bg-white text-gray-900 min-h-[100px] resize-y"
+                              placeholder="Edit your message..."
+                            />
+                            <div className="flex justify-end space-x-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={cancelEditMessage}
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={saveEditMessage}
+                                disabled={!editText.trim()}
+                              >
+                                Save
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <p className="whitespace-pre-wrap break-words">
+                              {message.text}
+                            </p>
+                            <div className="mt-1 flex items-center justify-end space-x-2">
+                              <span
+                                className={`text-xs ${isCurrentUser ? 'text-gray-300' : 'text-gray-500'}`}
+                              >
+                                {formatDistanceToNow(new Date(message.sentAt))}
+                              </span>
+                              {/* {message.isEdited && (
                               <span
                                 className={`text-xs ${isCurrentUser ? 'text-gray-300' : 'text-gray-500'}`}
                               >
                                 (edited)
                               </span>
                             )} */}
+                            </div>
                           </div>
+                        )}
+                      </div>
+                    </div>) : (
+                    <div className="w-full text-center my-5">
+                      {message.action === 'group-join' && (
+                        <div>
+                          {selectedChat.participants.find((p) => p.id === message.targetUserId)?.username} has joined the chat
+                        </div>
+                      )}
+                      {message.action === 'group-leave' && (
+                        <div>
+                          {selectedChat.participants.find((p) => p.id === message.targetUserId)?.username} has left the chat
                         </div>
                       )}
                     </div>
-                  </div>
+                  )}
 
                   {isCurrentUser && !editingMessageId && (
                     <DropdownMenu>
