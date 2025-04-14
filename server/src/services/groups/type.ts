@@ -15,7 +15,7 @@ export interface GroupLeaveActivityDto {
 }
 
 export interface GroupUpdateActivityDto extends ChatInfoDto {
-  activity: 'update';
+  activity: 'update-admin';
   participant: ParticipantDto;
 }
 

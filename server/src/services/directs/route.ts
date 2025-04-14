@@ -1,9 +1,10 @@
 import { AuthenticateJWT } from '@/jwt';
 import { Request, Response, Router } from 'express';
-import { createDirect } from './controller';
+import { createDirect, directFormat } from './controller';
 import { channelName, getUserSockets, io } from '@/socket';
 import { socketResponse } from '@/type';
 import { protect } from '@/middleware/auth';
+import * as crypto from 'crypto';
 
 const router = Router();
 
@@ -22,7 +23,9 @@ router.post('/:receiverId', AuthenticateJWT, async (req: Request, res: Response)
 
     const [senderChat, receiverChat] = await createDirect(userId, receiverId);
     if (!senderChat || !receiverChat) {
-      res.status(400).json({ message: 'Chat already exists' });
+      const base = directFormat(userId, receiverId);
+      const uniqueId = crypto.createHash('md5').update(base).digest('hex').slice(0, 16);
+      res.status(200).json({ message: 'Chat already exists', isExist: true, id: uniqueId });
       return;
     }
     res.status(200).json(senderChat);

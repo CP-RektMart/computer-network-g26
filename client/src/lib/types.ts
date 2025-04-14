@@ -9,7 +9,8 @@ export interface User {
 
 export interface Participant extends User {
   role: string
-  joinedAt: Date | undefined
+  joinedAt?: Date
+  isLeaved: boolean
 }
 
 export interface Chat {
@@ -17,7 +18,7 @@ export interface Chat {
   name: string
   isGroup: boolean
   lastMessage: string
-  timestamp: string
+  lastSentAt: string
   unread: number
   messageCount: number
   participants: Participant[]
@@ -26,8 +27,13 @@ export interface Chat {
 export interface Message {
   id: string
   chatId: string
-  senderId: number
-  text: string
-  timestamp: string
+  senderType: string
+  senderId: number | null
+  text?: string
+
+  action?: 'group-join' | 'group-leave'
+  targetUserId?: number
+
+  sentAt: string
   isEdited: boolean
 }

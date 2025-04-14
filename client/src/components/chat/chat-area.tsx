@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Edit, Menu, MoreVertical, Send, Trash2 } from 'lucide-react'
+import { Edit, Menu, MoreVertical, Send, Trash2, LogOut } from 'lucide-react'
 import type { Message } from '@/lib/types'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -18,6 +18,14 @@ import { cn } from '@/lib/utils'
 import { useChat } from '@/context/chat-context'
 import { useUser } from '@/context/user-context'
 import { formatDistanceToNow } from 'date-fns'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose
+} from '@/components/ui/dialog'
 
 interface ChatAreaProps {
   setIsMobileMenuOpen: (open: boolean) => void
@@ -26,7 +34,7 @@ interface ChatAreaProps {
 export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
   const { user } = useUser()
   const { selectedChat, messages, sendMessage, loadingMessages,
-    chatAreaScrollDown, setChatAreaScrollDown, fetchMessageToChat } = useChat()
+    chatAreaScrollDown, setChatAreaScrollDown, fetchMessageToChat, leaveGroup, createDirect } = useChat()
   const [messageText, setMessageText] = useState('')
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
@@ -63,7 +71,7 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
 
   const startEditMessage = (message: Message) => {
     setEditingMessageId(message.id)
-    setEditText(message.text)
+    setEditText(message.text || '')
   }
 
   const saveEditMessage = () => {
@@ -105,9 +113,8 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
     const { scrollTop, scrollHeight, clientHeight } = target
 
     if (scrollTop == 0 && selectedChat && currentChatMessages.length < selectedChat.messageCount) {
-      console.log('Scrolled to the top!')
       const prevScrollHeight = target.scrollHeight
-      const firstTimestamp = currentChatMessages[0]?.timestamp
+      const firstTimestamp = currentChatMessages[0]?.sentAt
 
       await fetchMessageToChat(selectedChat.id, fetchMessageLimit, firstTimestamp)
 
@@ -121,7 +128,6 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
 
     if (isNearBottom) {
       setIsNearBottom(true)
-      console.log('User is near the bottom!');
     } else {
       setIsNearBottom(false)
     }
@@ -173,35 +179,98 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
         </Avatar>
 
         {/* Chat Info */}
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-center md:gap-5">
-          <div>
-            <div className="flex items-center">
-              <h3 className="font-medium">{selectedChat.name}</h3>
+        <div className="flex items-center justify-between w-full">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center md:gap-5">
+            <div>
+              <div className="flex items-center">
+                <h3 className="font-medium">{selectedChat.name}</h3>
+                {selectedChat.isGroup && (
+                  <>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Badge variant="outline" className="ml-2 bg-gray-100 text-xs cursor-pointer hover:bg-gray-200">
+                          Group • {selectedChat.participants.filter((p) => !p.isLeaved).length} members
+                        </Badge>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="center" className="max-h-60 overflow-y-auto w-64">
+                        {selectedChat.participants.filter((p) => !p.isLeaved)
+                          .sort((a, b) => {
+                            if (a.role === 'admin' && b.role !== 'admin') return -1;
+                            if (a.role !== 'admin' && b.role === 'admin') return 1;
+                            return 0;
+                          })
+                          .map((participant) => (
+                            <DropdownMenuItem
+                              key={participant.id}
+                              className="text-gray-900 focus:text-gray-900 flex items-center justify-between"
+                              onClick={() => {
+                                if (participant.id !== user?.id) {
+                                  createDirect(participant.id)
+                                }
+                              }}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Avatar>
+                                  <AvatarFallback>
+                                    {participant.username ? participant.username.charAt(0) : '?'}
+                                  </AvatarFallback>
+                                </Avatar>
+                                {participant.username.length > 10
+                                  ? `${participant.username.slice(0, 10)}...`
+                                  : participant.username}
+                              </div>
 
-              {selectedChat.isGroup && (
-                <>
-                  <Badge variant="outline" className="ml-2 bg-gray-100 text-xs">
-                    Group • {selectedChat.participants.length} members
-                  </Badge>
-
-                </>
-              )}
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  "ml-2 text-xs",
+                                  participant.role === "admin" && "bg-red-100 text-red-700",
+                                  participant.role === "member" && "bg-blue-100 text-blue-700"
+                                )}
+                              >
+                                {participant.role}
+                              </Badge>
+                            </DropdownMenuItem>
+                          ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </>
+                )}
+              </div>
             </div>
-
-            <p className="text-xs text-gray-500">
-              {selectedChat.isGroup
-                ? `${selectedChat.participants.length} participants`
-                : "Direct message"}
-            </p>
+            {selectedChat.isGroup &&
+              <p className="text-xs text-gray-500">
+                {selectedChat.id}
+              </p>
+            }
 
           </div>
-          {selectedChat.isGroup &&
-            <p className="text-xs text-gray-500">
-              {selectedChat.id}
-            </p>
-          }
+          <div>
+            {selectedChat.isGroup && (
+              <Dialog>
+                <DialogTrigger asChild>
+                  <LogOut className="w-5 h-5 text-gray-900 cursor-pointer" />
+                </DialogTrigger>
+                <DialogContent >
+                  <DialogHeader>
+                    <DialogTitle className="text-lg font-semibold mb-4">Leave Group</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <p>Are you sure you want to leave this group? This action cannot be undone.</p>
+                  </div>
+                  <div className="flex justify-end gap-4">
+                    <DialogClose className="bg-gray-300 text-white px-4 py-2 rounded cursor-pointer hover:bg-gray-400">
+                      Cancel
+                    </DialogClose>
+                    <DialogClose className="bg-red-500 text-white px-4 py-2 rounded cursor-pointer hover:bg-red-600" onClick={() => leaveGroup(selectedChat.id)}>
+                      Leave Group
+                    </DialogClose>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
         </div>
-
       </div>
 
 
@@ -228,69 +297,83 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                   key={message.id}
                   className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div
-                    className={`max-w-[70%] ${isCurrentUser
-                      ? 'rounded-lg bg-primary text-white'
-                      : 'rounded-lg bg-gray-100 text-gray-900'
-                      } overflow-hidden`}
-                  >
-                    {!isCurrentUser && selectedChat.isGroup && (
-                      <div className="border-b border-gray-200 px-4 py-2 text-xs font-medium">
-                        {sender?.username || 'Unknown user'}
-                      </div>
-                    )}
-
-                    <div className="p-4">
-                      {editingMessageId === message.id ? (
-                        <div className="space-y-2">
-                          <Textarea
-                            value={editText}
-                            onChange={(e) => setEditText(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            autoFocus
-                            className="bg-white text-gray-900 min-h-[100px] resize-y"
-                            placeholder="Edit your message..."
-                          />
-                          <div className="flex justify-end space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={cancelEditMessage}
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={saveEditMessage}
-                              disabled={!editText.trim()}
-                            >
-                              Save
-                            </Button>
-                          </div>
+                  {message.senderType === "user" ? (
+                    <div
+                      className={`max-w-[70%] ${isCurrentUser
+                        ? 'rounded-lg bg-primary text-white'
+                        : 'rounded-lg bg-gray-100 text-gray-900'
+                        } overflow-hidden`}
+                    >
+                      {!isCurrentUser && selectedChat.isGroup && (
+                        <div className="border-b border-gray-200 px-4 py-2 text-xs font-medium">
+                          {sender?.username || 'Unknown user'}
                         </div>
-                      ) : (
-                        <div>
-                          <p className="whitespace-pre-wrap break-words">
-                            {message.text}
-                          </p>
-                          <div className="mt-1 flex items-center justify-end space-x-2">
-                            <span
-                              className={`text-xs ${isCurrentUser ? 'text-gray-300' : 'text-gray-500'}`}
-                            >
-                              {formatDistanceToNow(new Date(message.timestamp))}
-                            </span>
-                            {/* {message.isEdited && (
+                      )}
+
+                      <div className="p-4">
+                        {editingMessageId === message.id ? (
+                          <div className="space-y-2">
+                            <Textarea
+                              value={editText}
+                              onChange={(e) => setEditText(e.target.value)}
+                              onKeyDown={handleKeyDown}
+                              autoFocus
+                              className="bg-white text-gray-900 min-h-[100px] resize-y"
+                              placeholder="Edit your message..."
+                            />
+                            <div className="flex justify-end space-x-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={cancelEditMessage}
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={saveEditMessage}
+                                disabled={!editText.trim()}
+                              >
+                                Save
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <p className="whitespace-pre-wrap break-words">
+                              {message.text}
+                            </p>
+                            <div className="mt-1 flex items-center justify-end space-x-2">
+                              <span
+                                className={`text-xs ${isCurrentUser ? 'text-gray-300' : 'text-gray-500'}`}
+                              >
+                                {formatDistanceToNow(new Date(message.sentAt))}
+                              </span>
+                              {/* {message.isEdited && (
                               <span
                                 className={`text-xs ${isCurrentUser ? 'text-gray-300' : 'text-gray-500'}`}
                               >
                                 (edited)
                               </span>
                             )} */}
+                            </div>
                           </div>
+                        )}
+                      </div>
+                    </div>) : (
+                    <div className="w-full text-center my-5">
+                      {message.action === 'group-join' && (
+                        <div>
+                          {selectedChat.participants.find((p) => p.id === message.targetUserId)?.username} has joined the chat
+                        </div>
+                      )}
+                      {message.action === 'group-leave' && (
+                        <div>
+                          {selectedChat.participants.find((p) => p.id === message.targetUserId)?.username} has left the chat
                         </div>
                       )}
                     </div>
-                  </div>
+                  )}
 
                   {isCurrentUser && !editingMessageId && (
                     <DropdownMenu>

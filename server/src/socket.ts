@@ -90,8 +90,12 @@ const setupSocket = (server: HttpServer): Server => {
 
     socket.on('disconnect', async () => {
       logConnection(socket, 'Disconnected');
-      if (socket.activeChatId) {
-        await updateLastSeenInRoom(socket.userId!, socket.activeChatId);
+      try {
+        if (socket.activeChatId) {
+          await updateLastSeenInRoom(socket.userId!, socket.activeChatId);
+        }
+      } catch (error) {
+        console.log('Error in updating last seen:', error);
       }
 
       // TODO: call handlerSocketUserOfflineStatus

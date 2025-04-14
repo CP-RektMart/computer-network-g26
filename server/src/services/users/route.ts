@@ -360,7 +360,7 @@ router.put(
         message: 'Username updated successfully',
         user: {
           userId: user.id,
-          username: user.name,
+          username: user.username,
           email: user.email,
         },
       });

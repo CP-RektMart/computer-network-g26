@@ -12,8 +12,22 @@ export const directFormat = (id1: number, id2: number): string => {
 
 // This function creates a direct chat between two users identified by their IDs.
 export const createDirect = async (senderId: number, receiverId: number): Promise<[UserChatDetailDto | null, UserChatDetailDto | null]> => {
+  const base = directFormat(senderId, receiverId);
+  const uniqueId = crypto.createHash('md5').update(base).digest('hex').slice(0, 16);
+
+  const isExist = await prisma.room.findUnique({
+    where: {
+      id: uniqueId,
+    },
+  });
+
+  if (isExist) {
+    return [null, null];
+  }
+
   const newRoom = await prisma.room.create({
     data: {
+      id: uniqueId,
       type: 'direct',
       participants: {
         create: [senderId, receiverId].map((userId) => ({
@@ -33,7 +47,7 @@ export const createDirect = async (senderId: number, receiverId: number): Promis
 
   const mapped: ParticipantDto[] = newRoom.participants.map((p) => ({
     id: p.userId,
-    name: p.user.name,
+    username: p.user.username,
     email: p.user.email,
     joinedAt: p.joinedAt,
     joinAt: p.joinedAt,
@@ -49,7 +63,7 @@ export const createDirect = async (senderId: number, receiverId: number): Promis
       id: newRoom.id,
       name: undefined,
       lastMessage: undefined,
-      lastSendAt: undefined,
+      lastSentAt: undefined,
       createAt: newRoom.createdAt,
       type: 'direct',
       participants: mapped,
@@ -60,7 +74,7 @@ export const createDirect = async (senderId: number, receiverId: number): Promis
       id: newRoom.id,
       name: undefined,
       lastMessage: undefined,
-      lastSendAt: undefined,
+      lastSentAt: undefined,
       createAt: newRoom.createdAt,
       type: 'direct',
       participants: mapped,

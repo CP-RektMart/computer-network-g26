@@ -26,7 +26,7 @@ export const getParticipantOfRoom = async (roomId: string): Promise<ParticipantD
 
   const mapped: ParticipantDto[] = participants.map((p) => ({
     id: p.userId,
-    name: p.user.name,
+    username: p.user.username,
     email: p.user.email,
     joinedAt: p.joinedAt,
     joinAt: p.joinedAt,
@@ -73,9 +73,9 @@ export const getParticipant = async (userId: number, roomId: string): Promise<Pa
 
   return {
     id: participant.userId,
-    name: participant.user.name,
+    username: participant.user.username,
     email: participant.user.email,
-    joinAt: participant.joinedAt,
+    joinedAt: participant.joinedAt,
     registeredAt: participant.user.registeredAt,
     role: participant.role,
     lastLoginAt: participant.user.lastLoginAt,
@@ -85,7 +85,13 @@ export const getParticipant = async (userId: number, roomId: string): Promise<Pa
 };
 
 // Saves a message to the database and returns the saved message data
-export const saveMessage = async (roomId: string, senderId: number, sentAt: Date, content: InputJsonValue): Promise<MessageDto> => {
+export const saveMessage = async (
+  roomId: string,
+  senderType: string,
+  senderId: number | null,
+  sentAt: Date,
+  content: InputJsonValue
+): Promise<MessageDto> => {
   const base = `${sentAt.getTime()}-${senderId}-${roomId}`;
   const uniqueId = crypto.createHash('md5').update(base).digest('hex').slice(0, 16);
 
@@ -96,14 +102,17 @@ export const saveMessage = async (roomId: string, senderId: number, sentAt: Date
       roomId,
       senderId,
       sentAt,
+      senderType,
     },
   });
 
   return {
     id: savedMessage.id,
-    timestamp: savedMessage.sentAt,
+    sentAt: savedMessage.sentAt,
+    senderType: savedMessage.senderType,
     senderId: savedMessage.senderId,
     content: savedMessage.content as MessageContentDto,
+    isEdited: savedMessage.isEdited,
   };
 };
 
@@ -124,9 +133,11 @@ export const getMessageBefore = async (roomId: string, limit: number, before: Da
 
   return messages.map((message) => ({
     id: message.id,
+    senderType: message.senderType,
     senderId: message.senderId,
-    timestamp: message.sentAt,
+    sentAt: message.sentAt,
     content: message.content as MessageContentDto,
+    isEdited: message.isEdited,
   }));
 };
 
@@ -144,9 +155,11 @@ export const getMessageRecently = async (roomId: string, limit: number): Promise
 
   return messages.map((message) => ({
     id: message.id,
+    senderType: message.senderType,
     senderId: message.senderId,
-    timestamp: message.sentAt,
+    sentAt: message.sentAt,
     content: message.content as MessageContentDto,
+    isEdited: message.isEdited,
   }));
 };
 
@@ -193,9 +206,11 @@ export const getUnreadMessage = async (userId: number, roomId: string): Promise<
 
   return unreadMessages.map((message) => ({
     id: message.id,
+    senderType: message.senderType,
     senderId: message.senderId,
-    timestamp: message.sentAt,
+    sentAt: message.sentAt,
     content: message.content as MessageContentDto,
+    isEdited: message.isEdited,
   }));
 };
 
@@ -207,6 +222,7 @@ export const getUnreadMessageCount = async (userId: number, roomId: string): Pro
         userId,
         roomId,
       },
+      isLeaved: false,
     },
     select: {
       lastSeemAt: true,
