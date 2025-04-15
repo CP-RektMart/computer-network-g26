@@ -50,6 +50,12 @@ router.post('/', AuthenticateJWT, validateCreateGroup, async (req: Request, res:
 
     const newGroupChat = await createGroup(groupName, description, userId, participantIds);
 
+    await Promise.all(
+      participantIds.map(async (participantId: number) => {
+        await saveMessage(newGroupChat.id, 'system', null, new Date(), { type: 'group-join', userId: participantId });
+      })
+    );
+
     newGroupChat.participants.forEach((participant) => {
       if (participant.id !== userId) {
         const socketIds = getUserSockets(participant.id);
