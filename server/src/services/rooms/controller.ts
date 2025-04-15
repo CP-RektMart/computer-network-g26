@@ -93,7 +93,12 @@ export const saveMessage = async (
   content: InputJsonValue
 ): Promise<MessageDto> => {
   const base = `${sentAt.getTime()}-${senderId}-${roomId}`;
-  const uniqueId = crypto.createHash('md5').update(base).digest('hex').slice(0, 16);
+  const randomString = Math.random().toString(36).substring(2, 10);
+  const uniqueId = crypto
+    .createHash('md5')
+    .update(base + randomString)
+    .digest('hex')
+    .slice(0, 16);
 
   const savedMessage = await prisma.message.create({
     data: {

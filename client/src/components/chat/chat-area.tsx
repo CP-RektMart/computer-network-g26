@@ -39,7 +39,8 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const [isNearBottom, setIsNearBottom] = useState(true)
+  const isNearBottomRef = useRef(true);
+
   const fetchMessageLimit = 20
 
   const currentChatMessages = selectedChat ? messages[selectedChat.id] : []
@@ -52,7 +53,7 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
   }, [chatAreaScrollDown])
 
   useEffect(() => {
-    if (isNearBottom) {
+    if (isNearBottomRef.current) {
       scrollToBottom()
     }
   }, [messages, selectedChat])
@@ -110,7 +111,7 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
 
   const handleScroll = async (event: React.UIEvent) => {
     const target = event.currentTarget as HTMLElement
-    const { scrollTop, scrollHeight, clientHeight } = target
+    const { scrollTop, clientHeight, scrollHeight } = target;
 
     if (scrollTop == 0 && selectedChat && currentChatMessages.length < selectedChat.messageCount) {
       const prevScrollHeight = target.scrollHeight
@@ -123,13 +124,10 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
         target.scrollTop = newScrollHeight - prevScrollHeight
       })
     }
+    const nearBottom = scrollTop + clientHeight >= scrollHeight - 300;
 
-    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 300;
-
-    if (isNearBottom) {
-      setIsNearBottom(true)
-    } else {
-      setIsNearBottom(false)
+    if (isNearBottomRef.current !== nearBottom) {
+      isNearBottomRef.current = nearBottom;
     }
   }
 
@@ -154,6 +152,10 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
       </div>
     )
   }
+
+  const currentParticipant = selectedChat.participants.find(
+    (p) => user && p.id === user.id
+  );
 
   return (
     <div className="flex flex-1 flex-col bg-white md:border md:border-input md:rounded-2xl">
@@ -193,8 +195,13 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                         </Badge>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="center" className="max-h-60 overflow-y-auto w-64">
-                        {selectedChat.participants.filter((p) => !p.isLeaved)
+                        {selectedChat.participants
+                          .filter((p) => {
+                            if (currentParticipant?.role === 'admin') return true;
+                            return !p.isLeaved;
+                          })
                           .sort((a, b) => {
+                            if (a.isLeaved !== b.isLeaved) return a.isLeaved ? 1 : -1;
                             if (a.role === 'admin' && b.role !== 'admin') return -1;
                             if (a.role !== 'admin' && b.role === 'admin') return 1;
                             return 0;
@@ -219,17 +226,24 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                                   ? `${participant.username.slice(0, 10)}...`
                                   : participant.username}
                               </div>
-
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  "ml-2 text-xs",
-                                  participant.role === "admin" && "bg-red-100 text-red-700",
-                                  participant.role === "member" && "bg-blue-100 text-blue-700"
+                              <div>
+                                {currentParticipant?.role === "admin" && participant.isLeaved && (
+                                  <Badge variant="outline" className="ml-2 text-xs bg-gray-100 text-gray-500">
+                                    leaved
+                                  </Badge>
                                 )}
-                              >
-                                {participant.role}
-                              </Badge>
+
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    "ml-2 text-xs",
+                                    participant.role === "admin" && "bg-red-100 text-red-700",
+                                    participant.role === "member" && "bg-blue-100 text-blue-700"
+                                  )}
+                                >
+                                  {participant.role}
+                                </Badge>
+                              </div>
                             </DropdownMenuItem>
                           ))}
                       </DropdownMenuContent>
