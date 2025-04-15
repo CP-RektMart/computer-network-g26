@@ -208,7 +208,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               : undefined,
 
           sentAt: message.sentAt,
-          isEdited: false,
+          isEdited: message.isEdited,
         }
         console.log(newMessage)
         addOrUpdateMessageAtLast(chatId, newMessage)
@@ -632,7 +632,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             message.senderType === 'system'
               ? message.content.userId
               : undefined,
-          isEdited: false,
+          isEdited: message.isEdited,
         }
         addOrUpdateMessageAtFirst(chatId, mappedMessage)
       })
