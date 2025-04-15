@@ -303,6 +303,33 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       initChatMessages(formattedChat.id, [])
     })
 
+    socketRef.current.on('socket-room-edit-message', (res: any) => {
+      console.log('Socket Room Edit Message:', res)
+      if (res.status !== 'ok') {
+        console.error('Error in edit message:', res.error)
+        return
+      }
+      const { destination: chatId, body: message } = res
+
+      const updatedMessage: Message = {
+        id: message.id,
+        chatId,
+        senderType: message.senderType,
+        senderId: message.senderId,
+        text: message.content.text,
+        sentAt: message.sentAt,
+        action:
+          message.senderType === 'system' ? message.content.type : undefined,
+        targetUserId:
+          message.senderType === 'system' ? message.content.userId : undefined,
+        isEdited: true,
+      }
+      addOrUpdateMessageAtLast(chatId, updatedMessage)
+      // Update the last message of the chat
+      console.log('msg', messages)
+      updateChatLastMessage(chatId, messages[chatId][0])
+    })
+
     return () => {
       if (socketRef.current) {
         socketRef.current.off('socket-room-message')
@@ -396,7 +423,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           type: 'text',
           text,
         },
-        sentAt: new Date(),
       },
     })
   }

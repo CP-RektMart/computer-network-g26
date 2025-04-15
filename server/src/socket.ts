@@ -6,7 +6,7 @@ import { JWT_SECRET, LOG_LEVEL } from '@/env';
 import { ChatSocket, socketResponse } from '@/type';
 import { isUserExistById } from '@/services/users/controller';
 import { updateLastSeenInRoom } from './services/rooms/controller';
-import { onSocketRoomConnect, onSocketRoomMessage, onSocketRoomOpening } from './services/rooms/socket';
+import { onSocketRoomConnect, onSocketRoomMessage, onSocketRoomOpening, onSocketRoomEditMessage } from './services/rooms/socket';
 
 export let io: Server;
 export const userSocketMap = new Map<number, string[]>();
@@ -59,6 +59,8 @@ export const channelName = {
   // Channel to notify the receiver that a direct message room has been opened
   // [to send] the direct message room to the receiver
   directOpen: 'socket-direct-open',
+
+  editMessage: 'socket-room-edit-message',
 };
 
 // Socket setup function
@@ -86,6 +88,7 @@ const setupSocket = (server: HttpServer): Server => {
     socket.on(channelName.connectRoom, onSocketRoomConnect(socket));
     socket.on(channelName.openingRoom, onSocketRoomOpening(socket));
     socket.on(channelName.message, onSocketRoomMessage(socket));
+    socket.on(channelName.editMessage, onSocketRoomEditMessage(socket));
     // TODO: socket-room-online-status
 
     socket.on('disconnect', async () => {

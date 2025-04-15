@@ -409,13 +409,13 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                               >
                                 {formatDistanceToNow(new Date(message.sentAt))}
                               </span>
-                              {/* {message.isEdited && (
-                              <span
-                                className={`text-xs ${isCurrentUser ? 'text-gray-300' : 'text-gray-500'}`}
-                              >
-                                (edited)
-                              </span>
-                            )} */}
+                              {message.isEdited && (
+                                <span
+                                  className={`text-xs ${isCurrentUser ? 'text-gray-300' : 'text-gray-500'}`}
+                                >
+                                  (edited)
+                                </span>
+                              )}
                             </div>
                           </div>
                         )}

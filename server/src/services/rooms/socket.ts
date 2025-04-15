@@ -1,7 +1,7 @@
 import { LOG_LEVEL } from '@/env';
 import { channelName, io, logConnection } from '@/socket';
 import { ChatSocket, socketErrorResponse, socketResponse } from '@/type';
-import { isRoomExist, saveMessage, updateLastSeenInRoom } from './controller';
+import { isRoomExist, saveMessage, updateLastSeenInRoom, updateMessage } from './controller';
 import { MessageDto } from './type';
 
 // onSocketRoomConnect handles the connection of a user to a specific room
@@ -102,3 +102,40 @@ const logGroupActivity = (socket: ChatSocket, type: string, groupId: string) => 
   if (!LOG_LEVEL) return;
   console.log(`Activity User: ${socket.userId}, Group: ${groupId}, Type: ${type}`);
 };
+
+
+// onSocketRoomEditMessage handles the editing of a message in a room
+// It validates the request, checks if the room exists, and emits the edited message to the room
+// It handles any errors that may occur during the process
+// It emits a response back to the socket indicating the status of the operation
+export const onSocketRoomEditMessage = (socket: ChatSocket) => async (req: any) => {
+  const { destination, body }: { destination: string; body: MessageDto } = req;
+
+  if (!destination) {
+    socket.emit(channelName.editMessage, socketErrorResponse('Destination is missing'));
+    return;
+  }
+
+  if (!body) {
+    socket.emit(channelName.editMessage, socketErrorResponse('Invalid request: body is missing'));
+    return;
+  }
+
+  if (!body.content || !body.id || !body.senderId) {
+    console.log(body);
+    socket.emit(channelName.editMessage, socketErrorResponse(`Invalid request: message is invalid (content, sentAt, senderId)`));
+    return;
+  }
+
+  logConnection(socket, channelName.editMessage, destination);
+
+  try {
+    const savedMessage = await updateMessage(body.id, body.content);
+
+    const res = socketResponse('ok').destination(destination).withBody(savedMessage);
+    io.to(`${destination}`).emit(channelName.editMessage, res);
+  } catch (error) {
+    console.error('Error in handleEditMessage:', error);
+    socket.emit(channelName.editMessage, socketErrorResponse('Failed to edit message'));
+  }
+}

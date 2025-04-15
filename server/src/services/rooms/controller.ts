@@ -265,3 +265,25 @@ export const updateLastSeenInRoom = async (userId: number, roomId: string) => {
     },
   });
 };
+
+// update message content
+export const updateMessage = async (messageId: string, content: InputJsonValue) => {
+  const updatedMessage = await prisma.message.update({
+    where: {
+      id: messageId,
+    },
+    data: {
+      content,
+      isEdited: true,
+    },
+  });
+
+  return {
+    id: updatedMessage.id,
+    senderType: updatedMessage.senderType,
+    senderId: updatedMessage.senderId,
+    sentAt: updatedMessage.sentAt,
+    content: updatedMessage.content as MessageContentDto,
+    isEdited: updatedMessage.isEdited,
+  };
+}
