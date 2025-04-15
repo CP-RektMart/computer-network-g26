@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { Edit, Menu, MoreVertical, Send, Trash2, LogOut } from 'lucide-react'
+import React, { useEffect, useRef, useState } from 'react'
+import { Edit, LogOut, Menu, MoreVertical, Send, Trash2 } from 'lucide-react'
 import type { Message } from '@/lib/types'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -20,11 +20,11 @@ import { useUser } from '@/context/user-context'
 import { formatDistanceToNow } from 'date-fns'
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogClose
 } from '@/components/ui/dialog'
 
 interface ChatAreaProps {
@@ -33,13 +33,23 @@ interface ChatAreaProps {
 
 export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
   const { user } = useUser()
-  const { selectedChat, messages, sendMessage, loadingMessages,
-    chatAreaScrollDown, setChatAreaScrollDown, fetchMessageToChat, leaveGroup, createDirect } = useChat()
+  const {
+    selectedChat,
+    messages,
+    sendMessage,
+    loadingMessages,
+    chatAreaScrollDown,
+    setChatAreaScrollDown,
+    fetchMessageToChat,
+    leaveGroup,
+    createDirect,
+    editMessage,
+  } = useChat()
   const [messageText, setMessageText] = useState('')
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const isNearBottomRef = useRef(true);
+  const isNearBottomRef = useRef(true)
 
   const fetchMessageLimit = 20
 
@@ -78,6 +88,7 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
   const saveEditMessage = () => {
     if (editingMessageId && editText.trim()) {
       // This would call the API to edit the message
+      editMessage(editingMessageId, editText)
       // For now, just update the local state
       console.log('Edit message:', editingMessageId, editText)
       setEditingMessageId(null)
@@ -111,23 +122,31 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
 
   const handleScroll = async (event: React.UIEvent) => {
     const target = event.currentTarget as HTMLElement
-    const { scrollTop, clientHeight, scrollHeight } = target;
+    const { scrollTop, clientHeight, scrollHeight } = target
 
-    if (scrollTop == 0 && selectedChat && currentChatMessages.length < selectedChat.messageCount) {
+    if (
+      scrollTop == 0 &&
+      selectedChat &&
+      currentChatMessages.length < selectedChat.messageCount
+    ) {
       const prevScrollHeight = target.scrollHeight
       const firstTimestamp = currentChatMessages[0]?.sentAt
 
-      await fetchMessageToChat(selectedChat.id, fetchMessageLimit, firstTimestamp)
+      await fetchMessageToChat(
+        selectedChat.id,
+        fetchMessageLimit,
+        firstTimestamp,
+      )
 
       requestAnimationFrame(() => {
         const newScrollHeight = target.scrollHeight
         target.scrollTop = newScrollHeight - prevScrollHeight
       })
     }
-    const nearBottom = scrollTop + clientHeight >= scrollHeight - 300;
+    const nearBottom = scrollTop + clientHeight >= scrollHeight - 300
 
     if (isNearBottomRef.current !== nearBottom) {
-      isNearBottomRef.current = nearBottom;
+      isNearBottomRef.current = nearBottom
     }
   }
 
@@ -154,8 +173,8 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
   }
 
   const currentParticipant = selectedChat.participants.find(
-    (p) => user && p.id === user.id
-  );
+    (p) => user && p.id === user.id,
+  )
 
   return (
     <div className="flex flex-1 flex-col bg-white md:border md:border-input md:rounded-2xl">
@@ -168,7 +187,6 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
       >
         <Menu className="h-5 w-5" />
       </Button>
-
 
       <div className="flex gap-5 p-4">
         {/* Avatar */}
@@ -190,21 +208,36 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                   <>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Badge variant="outline" className="ml-2 bg-gray-100 text-xs cursor-pointer hover:bg-gray-200">
-                          Group • {selectedChat.participants.filter((p) => !p.isLeaved).length} members
+                        <Badge
+                          variant="outline"
+                          className="ml-2 bg-gray-100 text-xs cursor-pointer hover:bg-gray-200"
+                        >
+                          Group •{' '}
+                          {
+                            selectedChat.participants.filter((p) => !p.isLeaved)
+                              .length
+                          }{' '}
+                          members
                         </Badge>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="center" className="max-h-60 overflow-y-auto w-64">
+                      <DropdownMenuContent
+                        align="center"
+                        className="max-h-60 overflow-y-auto w-64"
+                      >
                         {selectedChat.participants
                           .filter((p) => {
-                            if (currentParticipant?.role === 'admin') return true;
-                            return !p.isLeaved;
+                            if (currentParticipant?.role === 'admin')
+                              return true
+                            return !p.isLeaved
                           })
                           .sort((a, b) => {
-                            if (a.isLeaved !== b.isLeaved) return a.isLeaved ? 1 : -1;
-                            if (a.role === 'admin' && b.role !== 'admin') return -1;
-                            if (a.role !== 'admin' && b.role === 'admin') return 1;
-                            return 0;
+                            if (a.isLeaved !== b.isLeaved)
+                              return a.isLeaved ? 1 : -1
+                            if (a.role === 'admin' && b.role !== 'admin')
+                              return -1
+                            if (a.role !== 'admin' && b.role === 'admin')
+                              return 1
+                            return 0
                           })
                           .map((participant) => (
                             <DropdownMenuItem
@@ -219,7 +252,9 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                               <div className="flex items-center gap-2">
                                 <Avatar>
                                   <AvatarFallback>
-                                    {participant.username ? participant.username.charAt(0) : '?'}
+                                    {participant.username
+                                      ? participant.username.charAt(0)
+                                      : '?'}
                                   </AvatarFallback>
                                 </Avatar>
                                 {participant.username.length > 10
@@ -227,18 +262,24 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                                   : participant.username}
                               </div>
                               <div>
-                                {currentParticipant?.role === "admin" && participant.isLeaved && (
-                                  <Badge variant="outline" className="ml-2 text-xs bg-gray-100 text-gray-500">
-                                    leaved
-                                  </Badge>
-                                )}
+                                {currentParticipant?.role === 'admin' &&
+                                  participant.isLeaved && (
+                                    <Badge
+                                      variant="outline"
+                                      className="ml-2 text-xs bg-gray-100 text-gray-500"
+                                    >
+                                      leaved
+                                    </Badge>
+                                  )}
 
                                 <Badge
                                   variant="outline"
                                   className={cn(
-                                    "ml-2 text-xs",
-                                    participant.role === "admin" && "bg-red-100 text-red-700",
-                                    participant.role === "member" && "bg-blue-100 text-blue-700"
+                                    'ml-2 text-xs',
+                                    participant.role === 'admin' &&
+                                      'bg-red-100 text-red-700',
+                                    participant.role === 'member' &&
+                                      'bg-blue-100 text-blue-700',
                                   )}
                                 >
                                   {participant.role}
@@ -252,12 +293,9 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                 )}
               </div>
             </div>
-            {selectedChat.isGroup &&
-              <p className="text-xs text-gray-500">
-                {selectedChat.id}
-              </p>
-            }
-
+            {selectedChat.isGroup && (
+              <p className="text-xs text-gray-500">{selectedChat.id}</p>
+            )}
           </div>
           <div>
             {selectedChat.isGroup && (
@@ -265,18 +303,26 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                 <DialogTrigger asChild>
                   <LogOut className="w-5 h-5 text-gray-900 cursor-pointer" />
                 </DialogTrigger>
-                <DialogContent >
+                <DialogContent>
                   <DialogHeader>
-                    <DialogTitle className="text-lg font-semibold mb-4">Leave Group</DialogTitle>
+                    <DialogTitle className="text-lg font-semibold mb-4">
+                      Leave Group
+                    </DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
-                    <p>Are you sure you want to leave this group? This action cannot be undone.</p>
+                    <p>
+                      Are you sure you want to leave this group? This action
+                      cannot be undone.
+                    </p>
                   </div>
                   <div className="flex justify-end gap-4">
                     <DialogClose className="bg-gray-300 text-white px-4 py-2 rounded cursor-pointer hover:bg-gray-400">
                       Cancel
                     </DialogClose>
-                    <DialogClose className="bg-red-500 text-white px-4 py-2 rounded cursor-pointer hover:bg-red-600" onClick={() => leaveGroup(selectedChat.id)}>
+                    <DialogClose
+                      className="bg-red-500 text-white px-4 py-2 rounded cursor-pointer hover:bg-red-600"
+                      onClick={() => leaveGroup(selectedChat.id)}
+                    >
                       Leave Group
                     </DialogClose>
                   </div>
@@ -286,7 +332,6 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
           </div>
         </div>
       </div>
-
 
       {/* Messages area */}
       <ScrollArea className="flex-1 p-4 h-96" onScroll={handleScroll}>
@@ -311,12 +356,13 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                   key={message.id}
                   className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
                 >
-                  {message.senderType === "user" ? (
+                  {message.senderType === 'user' ? (
                     <div
-                      className={`max-w-[70%] ${isCurrentUser
-                        ? 'rounded-lg bg-primary text-white'
-                        : 'rounded-lg bg-gray-100 text-gray-900'
-                        } overflow-hidden`}
+                      className={`max-w-[70%] ${
+                        isCurrentUser
+                          ? 'rounded-lg bg-primary text-white'
+                          : 'rounded-lg bg-gray-100 text-gray-900'
+                      } overflow-hidden`}
                     >
                       {!isCurrentUser && selectedChat.isGroup && (
                         <div className="border-b border-gray-200 px-4 py-2 text-xs font-medium">
@@ -374,16 +420,27 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                           </div>
                         )}
                       </div>
-                    </div>) : (
+                    </div>
+                  ) : (
                     <div className="w-full text-center my-5">
                       {message.action === 'group-join' && (
                         <div>
-                          {selectedChat.participants.find((p) => p.id === message.targetUserId)?.username} has joined the chat
+                          {
+                            selectedChat.participants.find(
+                              (p) => p.id === message.targetUserId,
+                            )?.username
+                          }{' '}
+                          has joined the chat
                         </div>
                       )}
                       {message.action === 'group-leave' && (
                         <div>
-                          {selectedChat.participants.find((p) => p.id === message.targetUserId)?.username} has left the chat
+                          {
+                            selectedChat.participants.find(
+                              (p) => p.id === message.targetUserId,
+                            )?.username
+                          }{' '}
+                          has left the chat
                         </div>
                       )}
                     </div>
@@ -452,6 +509,6 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
           </Button>
         </form>
       </div>
-    </div >
+    </div>
   )
 }
