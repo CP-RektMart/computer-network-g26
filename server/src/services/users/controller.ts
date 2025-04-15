@@ -1,12 +1,12 @@
 import { prisma } from '@/database';
 import bcrypt from 'bcryptjs';
-import { User } from '@prisma/client';
-import { fetchFromCacheOrDb, redis } from '@/redis';
+import { getGroup } from '@/services/groups/controller';
+import { getMessageCount, getMessageRecently, getUnreadMessageCount } from '@/services/rooms/controller';
+import { UserChatDetailDto, UserDto } from './type';
+import { ChatInfoDto, ParticipantDto } from '../rooms/type';
 
-//@desc    Register User
-//@route   POST /api/users/register
-//@access  Public
-export const registerUser = async (username: string, email: string, password: string): Promise<User> => {
+//  Registers a new user. Checks for existing username and email, hashes the password, and saves the user.
+export const registerUser = async (username: string, email: string, password: string): Promise<UserDto> => {
   const existingUsername = await prisma.user.findUnique({
     where: { username },
   });
@@ -33,13 +33,18 @@ export const registerUser = async (username: string, email: string, password: st
     },
   });
 
-  return user;
+  return {
+    id: user.id,
+    email: user.email,
+    username: user.username,
+    registeredAt: user.registeredAt,
+    lastLoginAt: undefined,
+    isOnline: user.isOnline,
+  };
 };
 
-//@desc    Login User
-//@route   POST /api/users/login
-//@access  Public
-export const loginUser = async (username: string, password: string) => {
+// Authenticates a user by checking the username and password, and returns user details if valid.
+export const loginUser = async (username: string, password: string): Promise<UserDto> => {
   const user = await prisma.user.findUnique({
     where: { username },
   });
@@ -53,101 +58,91 @@ export const loginUser = async (username: string, password: string) => {
     throw new Error('Password is incorrect');
   }
 
-  return user;
+  return {
+    id: user.id,
+    email: user.email,
+    username: user.username,
+    registeredAt: user.registeredAt,
+    lastLoginAt: user.lastLoginAt,
+    isOnline: user.isOnline,
+  };
 };
 
-//@desc    Get User by ID
-//@route   GET /api/users/:id
-//@access  Public
-export const getUserById = async (userId: number) => {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
+export const getAllUsers = async (): Promise<UserDto[]> => {
+  const users = await prisma.user.findMany({
     select: {
       id: true,
       email: true,
       username: true,
-      lastSeenAt: true,
-      groupMemberships: {
-        select: {
-          role: true,
-          group: {
-            select: {
-              id: true,
-              name: true,
-              lastSendAt: true,
-            },
-          },
-        },
-      },
+      registeredAt: true,
+      lastLoginAt: true,
+      isOnline: true,
+    },
+  });
+
+  return users.map((user) => ({
+    id: user.id,
+    email: user.email,
+    username: user.username,
+    registeredAt: user.registeredAt,
+    lastLoginAt: user.lastLoginAt,
+    isOnline: user.isOnline,
+  }));
+};
+
+// Retrieves a user's details by their ID and returns them if found, otherwise returns null.
+export const getUserById = async (id: number): Promise<UserDto | null> => {
+  const user = await prisma.user.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      email: true,
+      username: true,
+      registeredAt: true,
+      lastLoginAt: true,
+      isOnline: true,
     },
   });
 
   if (!user) return null;
 
-  const chat = user.groupMemberships.map((membership) => ({
-    chatId: membership.group.id,
-    type: 'group',
-    last_seem_at: membership.group.lastSendAt,
-  }));
-
-  // Sort by last_seem_at descending
-  chat.sort((a, b) => b.last_seem_at.getTime() - a.last_seem_at.getTime());
-
   return {
-    userId: user.id,
+    id: user.id,
     username: user.username,
     email: user.email,
-    lastSendAt: user.lastSeenAt,
-    chat,
+    registeredAt: user.registeredAt,
+    lastLoginAt: user.lastLoginAt,
+    isOnline: user.isOnline,
   };
 };
 
-//@desc    Get User by Username
-//@route   GET /api/users/username/:username
-//@access  Public
-export const getUserByUsername = async (username: string) => {
+// Retrieves a user's details by their name and returns them if found, otherwise returns null.
+export const getUserByUsername = async (username: string): Promise<UserDto | null> => {
   const user = await prisma.user.findUnique({
-    where: { username: username },
+    where: { username },
     select: {
       id: true,
       email: true,
       username: true,
-      lastSeenAt: true,
-      groupMemberships: {
-        select: {
-          role: true,
-          group: {
-            select: {
-              id: true,
-              name: true,
-              lastSendAt: true,
-            },
-          },
-        },
-      },
+      registeredAt: true,
+      lastLoginAt: true,
+      isOnline: true,
     },
   });
 
   if (!user) return null;
 
-  const chat = user.groupMemberships.map((membership) => ({
-    chatId: membership.group.id,
-    type: 'group',
-    last_seem_at: membership.group.lastSendAt,
-  }));
-
-  // Sort by last_seem_at descending
-  chat.sort((a, b) => b.last_seem_at.getTime() - a.last_seem_at.getTime());
-
   return {
-    userId: user.id,
+    id: user.id,
     username: user.username,
     email: user.email,
-    lastSendAt: user.lastSeenAt,
-    chat,
+    registeredAt: user.registeredAt,
+    lastLoginAt: user.lastLoginAt,
+    isOnline: user.isOnline,
   };
 };
 
+// Checks if a user exists by their ID and returns true if found, otherwise false.
 export const isUserExistById = async (userId: number): Promise<boolean> => {
   const user = await prisma.user.count({
     where: { id: userId },
@@ -155,78 +150,100 @@ export const isUserExistById = async (userId: number): Promise<boolean> => {
   return user > 0;
 };
 
+// Checks if a user exists by their name and returns true if found, otherwise false.
 export const isUserExistByUsername = async (username: string): Promise<boolean> => {
   const user = await prisma.user.count({
-    where: { username: username },
+    where: { username },
   });
   return user > 0;
 };
 
-export const getUserChatGroupIds = async (userId: number) => {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
+// Fetches the chats for a user, including unread message count, last message, and participant details.
+export const getChat = async (userId: number): Promise<UserChatDetailDto[]> => {
+  const chats = await prisma.room.findMany({
+    where: {
+      participants: {
+        some: {
+          userId: userId,
+          isLeaved: false,
+        },
+      },
+    },
     include: {
-      groupMemberships: {
+      participants: {
         include: {
-          group: {
-            select: {
-              id: true,
-            },
-          },
+          user: true,
         },
       },
     },
   });
 
-  return user?.groupMemberships?.map((membership) => membership.group.id) || [];
+  const userChats = (
+    await Promise.all(
+      chats.map(async (chat) => {
+        const [unreadMessageCount, lastMessage, messageCount] = await Promise.all([
+          getUnreadMessageCount(userId, chat.id),
+          getMessageRecently(chat.id, 1),
+          getMessageCount(chat.id),
+        ]);
+
+        const isGroup = chat.type === 'group';
+
+        const group = isGroup ? await getGroup(chat.id) : null;
+
+        const mapped: ParticipantDto[] = chat.participants.map((p) => ({
+          id: p.userId,
+          username: p.user.username,
+          email: p.user.email,
+          joinedAt: p.joinedAt,
+          joinAt: p.joinedAt,
+          role: p.role,
+          registeredAt: p.user.registeredAt,
+          lastLoginAt: p.user.lastLoginAt,
+          isOnline: p.user.isOnline,
+          isLeaved: p.isLeaved,
+        }));
+
+        const userChat: UserChatDetailDto = {
+          id: chat.id,
+          name: isGroup ? group?.name || 'Unknown Group' : undefined,
+          type: chat.type as ChatInfoDto['type'],
+          createAt: chat.createdAt,
+          lastMessage: lastMessage[0],
+          lastSentAt: chat.lastSentAt ?? undefined,
+          participants: mapped,
+          unread: unreadMessageCount,
+          messageCount,
+        };
+
+        return userChat;
+      })
+    )
+  ).filter((chat): chat is UserChatDetailDto => chat !== null);
+
+  return userChats;
 };
 
-export const isUserOnline = async (userId: number): Promise<boolean> => {
-  const cacheKey = `user_${userId}/online_status`;
-
-  const onlineStatus = await fetchFromCacheOrDb(cacheKey, async () => {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { isOnline: true },
-    });
-
-    return user ? user.isOnline : false;
-  });
-
-  return onlineStatus;
-};
-
-export const updateUserOnline = async (userId: number): Promise<void> => {
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      isOnline: true,
+// Retrieves the room IDs for a given user based on their participation in rooms.
+export const getChatsId = async (userId: number): Promise<string[]> => {
+  const chats = await prisma.roomParticipant.findMany({
+    where: {
+      userId,
+    },
+    select: {
+      roomId: true,
+      room: {
+        select: {
+          type: true,
+        },
+      },
     },
   });
 
-  const cacheKey = `user_${userId}/online_status`;
-
-  await redis.set(cacheKey, JSON.stringify(true), 'EX', 3600);
+  return chats.map((chat) => chat.roomId);
 };
 
-export const updateUserOffline = async (userId: number): Promise<void> => {
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      isOnline: false,
-      lastSeenAt: new Date(),
-    },
-  });
-
-  const cacheKey = `user_${userId}/online_status`;
-
-  await redis.set(cacheKey, JSON.stringify(false), 'EX', 3600);
-};
-
-//@desc    Update Username
-//@route   PUT /api/users/username
-//@access  Private
-export const updateUsername = async (userId: number, newUsername: string): Promise<User> => {
+export const updateUsername = async (userId: number, newUsername: string): Promise<UserDto> => {
   // Check if the new username already exists
   const existingUsername = await prisma.user.findUnique({
     where: { username: newUsername },
@@ -242,5 +259,11 @@ export const updateUsername = async (userId: number, newUsername: string): Promi
     data: { username: newUsername },
   });
 
+  //TODO: emit socket event to update username in all rooms
+
   return updatedUser;
 };
+
+// TODO: isUserOnline
+// TODO: updateUserOnline
+// TODO: updateUserOffline

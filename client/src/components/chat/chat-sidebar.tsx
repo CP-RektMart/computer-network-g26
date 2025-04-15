@@ -1,9 +1,20 @@
 import { useState } from 'react'
-import { Edit2, LogOut, Menu, Search, UserPlus, Users, X } from 'lucide-react'
-import type { Chat, User } from '@/lib/types'
+import {
+  Edit2,
+  LogOut,
+  Menu,
+  Plus,
+  Search,
+  UserPlus,
+  Users,
+  X,
+} from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import type { User } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -12,75 +23,67 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useUser } from '@/context/user-context'
+import { useChat } from '@/context/chat-context'
+import { formatDistanceToNow } from 'date-fns'
 
 interface ChatSidebarProps {
-  chats: Chat[]
-  selectedChat: Chat | null
-  onSelectChat: (chat: Chat) => void
-  onCreateGroup: (name: string, participants: User[]) => void
-  onJoinGroup: (groupId: string) => void
-  currentUser: User
-  onUpdateName: (newName: string) => void
-  onLogout: () => Promise<void>
   isMobileMenuOpen: boolean
   setIsMobileMenuOpen: (open: boolean) => void
 }
 
 export default function ChatSidebar({
-  chats,
-  selectedChat,
-  onSelectChat,
-  onCreateGroup,
-  onJoinGroup,
-  currentUser,
-  onUpdateName,
-  onLogout,
   isMobileMenuOpen,
   setIsMobileMenuOpen,
 }: ChatSidebarProps) {
+  const { user: currentUser, updateUsername, logout } = useUser()
+  const { chats, selectedChat, selectChat, createDirect, createGroup, joinGroup } = useChat()
+
   const [searchQuery, setSearchQuery] = useState('')
   const [newGroupName, setNewGroupName] = useState('')
   const [groupIdToJoin, setGroupIdToJoin] = useState('')
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false)
-  const [editedName, setEditedName] = useState(currentUser.username)
+  const [editedName, setEditedName] = useState(currentUser?.username || '')
   const [chatTypeFilter, setChatTypeFilter] = useState('all')
+  const [openContactsDialog, setOpenContactsDialog] = useState(false)
 
-  // Mock users for group creation
-  const mockUsers: User[] = [
-    {
-      id: 2,
-      username: 'Jane Smith',
-      email: 'jane@example.com',
-    },
-    {
-      id: 3,
-      username: 'Mike Johnson',
-      email: 'mike@example.com',
-    },
-    {
-      id: 4,
-      username: 'Sarah Williams',
-      email: 'sarah@example.com',
-    },
-  ]
+  const fetchUsers = async (): Promise<User[]> => {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+      },
+    })
+    const data = await response.json()
+    if (!response.ok) {
+      throw new Error('Failed to fetch users')
+    }
+    return data
+  }
+
+  const { data: users } = useQuery({
+    queryKey: ['users'],
+    queryFn: fetchUsers,
+  })
 
   const [selectedUsers, setSelectedUsers] = useState<User[]>([])
 
   const handleCreateGroup = () => {
     if (newGroupName.trim() && selectedUsers.length > 0) {
-      onCreateGroup(newGroupName, selectedUsers)
+      createGroup(newGroupName, selectedUsers)
       setNewGroupName('')
       setSelectedUsers([])
+      setIsMobileMenuOpen(false)
     }
   }
 
   const handleJoinGroup = () => {
     if (groupIdToJoin.trim()) {
-      onJoinGroup(groupIdToJoin)
+      joinGroup(groupIdToJoin)
       setGroupIdToJoin('')
+      setIsMobileMenuOpen(false)
     }
   }
 
@@ -92,10 +95,24 @@ export default function ChatSidebar({
     }
   }
 
+  const handleUpdateUsername = async () => {
+    if (editedName.trim() && editedName !== currentUser?.username) {
+      await updateUsername(editedName)
+      setIsEditProfileOpen(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    await logout()
+  }
+
   const filteredChats = chats.filter((chat) => {
-    const matchesSearch = chat.name
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase())
+    const resolvedName = chat.isGroup
+      ? chat.name ?? ''
+      : chat.participants?.find(p => currentUser && p.id !== currentUser.id)?.username ?? '';
+
+
+    const matchesSearch = resolvedName.toLowerCase().includes(searchQuery.toLowerCase())
     let matchesType = true
     if (chatTypeFilter !== 'all') {
       matchesType = chatTypeFilter === 'group' ? chat.isGroup : !chat.isGroup
@@ -115,9 +132,8 @@ export default function ChatSidebar({
 
       {/* Sidebar */}
       <div
-        className={`${
-          isMobileMenuOpen ? 'translate-x-0 pt-14' : '-translate-x-full'
-        } fixed inset-y-0 left-0 z-40 w-80 transform md:border md:border-input bg-white md:rounded-2xl transition-transform duration-300 ease-in-out md:relative md:translate-x-0`}
+        className={`${isMobileMenuOpen ? 'translate-x-0 pt-14' : '-translate-x-full'
+          } fixed inset-y-0 left-0 z-40 w-80 transform md:border md:border-input bg-white md:rounded-2xl transition-transform duration-300 ease-in-out md:relative md:translate-x-0`}
       >
         <div className="flex h-full flex-col">
           {/* User profile */}
@@ -125,12 +141,12 @@ export default function ChatSidebar({
             <div className="flex items-center space-x-3">
               <Avatar>
                 <AvatarFallback>
-                  {currentUser.username.charAt(0)}
+                  {currentUser?.username ? currentUser.username.charAt(0) : '?'}
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h3 className="font-medium">{currentUser.username}</h3>
-                <p className="text-xs text-gray-500">{currentUser.email}</p>
+                <h3 className="font-medium">{currentUser?.username}</h3>
+                <p className="text-xs text-gray-500">{currentUser?.email}</p>
               </div>
             </div>
             <div className="flex items-center">
@@ -159,11 +175,11 @@ export default function ChatSidebar({
                     </div>
                     <Button
                       className="w-full"
-                      onClick={() => {
-                        onUpdateName(editedName)
-                        setIsEditProfileOpen(false)
-                      }}
-                      disabled={!editedName.trim()}
+                      onClick={handleUpdateUsername}
+                      disabled={
+                        !editedName.trim() ||
+                        editedName === currentUser?.username
+                      }
                     >
                       Save
                     </Button>
@@ -174,7 +190,7 @@ export default function ChatSidebar({
                 variant="ghost"
                 size="icon"
                 title="Logout"
-                onClick={onLogout}
+                onClick={handleLogout}
               >
                 <LogOut className="h-5 w-5" />
               </Button>
@@ -183,14 +199,69 @@ export default function ChatSidebar({
 
           {/* Search and actions */}
           <div className="border-b p-4">
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search conversations..."
-                className="pl-9"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search conversations..."
+                  className="pl-9"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+
+              <Dialog
+                open={openContactsDialog}
+                onOpenChange={setOpenContactsDialog}
+              >
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Contacts</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="max-h-60 space-y-2 overflow-y-auto rounded-md border p-2">
+                      {users
+                        ?.filter(
+                          (user) =>
+                            currentUser &&
+                            user.id !== currentUser.id,
+                        )
+                        .map((user) => (
+                          <div
+                            key={user.id}
+                            className="flex items-center justify-between rounded-md p-2 hover:bg-gray-100"
+                            onClick={() => {
+                              createDirect(user.id)
+                              setIsMobileMenuOpen(false)
+                              setOpenContactsDialog(false)
+                            }}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <Avatar className="h-8 w-8">
+                                <AvatarFallback>
+                                  {user.username.charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="text-sm font-medium">
+                                  {user.username}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {user.email}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
 
             <div className="flex space-x-2 mb-4">
@@ -218,47 +289,52 @@ export default function ChatSidebar({
                     <div className="space-y-2">
                       <Label>Select Participants</Label>
                       <div className="max-h-60 space-y-2 overflow-y-auto rounded-md border p-2">
-                        {mockUsers.map((user) => (
-                          <div
-                            key={user.id}
-                            className={`flex cursor-pointer items-center justify-between rounded-md p-2 ${
-                              selectedUsers.some((u) => u.id === user.id)
+                        {users
+                          ?.filter(
+                            (user) =>
+                              currentUser &&
+                              user.id !== currentUser.id,
+                          )
+                          .map((user) => (
+                            <div
+                              key={user.id}
+                              className={`flex cursor-pointer items-center justify-between rounded-md p-2 ${selectedUsers.some((u) => u.id === user.id)
                                 ? 'bg-gray-100'
                                 : ''
-                            }`}
-                            onClick={() => toggleUserSelection(user)}
-                          >
-                            <div className="flex items-center space-x-3">
-                              <Avatar className="h-8 w-8">
-                                <AvatarFallback>
-                                  {user.username.charAt(0)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <p className="text-sm font-medium">
-                                  {user.username}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {user.email}
-                                </p>
+                                }`}
+                              onClick={() => toggleUserSelection(user)}
+                            >
+                              <div className="flex items-center space-x-3">
+                                <Avatar className="h-8 w-8">
+                                  <AvatarFallback>
+                                    {user.username.charAt(0)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <p className="text-sm font-medium">
+                                    {user.username}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    {user.email}
+                                  </p>
+                                </div>
                               </div>
+                              {selectedUsers.some((u) => u.id === user.id) && (
+                                <div className="h-4 w-4 rounded-full bg-primary"></div>
+                              )}
                             </div>
-                            {selectedUsers.some((u) => u.id === user.id) && (
-                              <div className="h-4 w-4 rounded-full bg-primary"></div>
-                            )}
-                          </div>
-                        ))}
+                          ))}
                       </div>
                     </div>
-                    <Button
-                      className="w-full"
-                      onClick={handleCreateGroup}
-                      disabled={
-                        !newGroupName.trim() || selectedUsers.length === 0
-                      }
-                    >
-                      Create Group
-                    </Button>
+                    <DialogClose asChild>
+                      <Button
+                        className="w-full"
+                        onClick={handleCreateGroup}
+                        disabled={!newGroupName.trim() || selectedUsers.length === 0}
+                      >
+                        Create Group
+                      </Button>
+                    </DialogClose>
                   </div>
                 </DialogContent>
               </Dialog>
@@ -284,13 +360,11 @@ export default function ChatSidebar({
                         onChange={(e) => setGroupIdToJoin(e.target.value)}
                       />
                     </div>
-                    <Button
-                      className="w-full"
+                    <DialogClose className="w-full bg-blue-700 text-white rounded-md p-2 text-center hover:bg-blue-600 transition-colors duration-200 ease-in-out" 
                       onClick={handleJoinGroup}
-                      disabled={!groupIdToJoin.trim()}
-                    >
+                      disabled={!groupIdToJoin.trim()}>
                       Join Group
-                    </Button>
+                    </DialogClose>
                   </div>
                 </DialogContent>
               </Dialog>
@@ -299,31 +373,35 @@ export default function ChatSidebar({
             <Tabs defaultValue="all" onValueChange={setChatTypeFilter}>
               <TabsList className="w-full h-full p-2 rounded-full *:rounded-full *:h-9 *:data-[state=active]:text-primary">
                 <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="person">Person</TabsTrigger>
+                <TabsTrigger value="direct">Direct</TabsTrigger>
                 <TabsTrigger value="group">Group</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
 
           {/* Chat list */}
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1 overflow-auto">
             <div className="space-y-1 p-2">
               {filteredChats.length > 0 ? (
                 filteredChats.map((chat) => (
                   <div
                     key={chat.id}
-                    className={`flex cursor-pointer items-center justify-between rounded-md p-3 ${
-                      selectedChat?.id === chat.id
-                        ? 'bg-gray-100'
-                        : 'hover:bg-gray-50'
-                    }`}
-                    onClick={() => onSelectChat(chat)}
+                    className={`flex cursor-pointer items-center justify-between rounded-md p-3 ${selectedChat?.id === chat.id
+                      ? 'bg-gray-100'
+                      : 'hover:bg-gray-50'
+                      }`}
+                    onClick={() => {
+                      selectChat(chat)
+                      setIsMobileMenuOpen(false)
+                    }}
                   >
                     <div className="flex items-center space-x-3">
                       <Avatar>
-                        <AvatarImage src={chat.avatar} alt={chat.name} />
-                        <AvatarFallback>{chat.name.charAt(0)}</AvatarFallback>
+                        <AvatarFallback>
+                          {chat.name ? chat.name.charAt(0) : '?'}
+                        </AvatarFallback>
                       </Avatar>
+
                       <div>
                         <div className="flex items-center">
                           <h3 className="font-medium">{chat.name}</h3>
@@ -340,7 +418,7 @@ export default function ChatSidebar({
                     </div>
                     <div className="flex flex-col self-start items-end space-y-1">
                       <span className="text-xs text-gray-500">
-                        {chat.timestamp}
+                        {chat.lastSentAt ? formatDistanceToNow(chat.lastSentAt) : ''}
                       </span>
                       {chat.unread > 0 && (
                         <Badge className="h-5 w-5 rounded-full p-0 flex items-center justify-center bg-red-500">

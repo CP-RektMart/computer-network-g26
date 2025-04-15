@@ -1,10 +1,24 @@
+import * as express from 'express';
 import { JWT_SECRET } from '@/env';
-import { User } from '@prisma/client';
 import jwt from 'jsonwebtoken';
+import { UserDto } from './type';
 
-export const getSignedJwtToken = (user: User): string => {
-  const token = jwt.sign({ userId: user.id }, JWT_SECRET, {
+export const getSignedJwtToken = (userId: number): string => {
+  return jwt.sign({ userId }, JWT_SECRET, {
     expiresIn: '30d',
   });
-  return token;
+};
+
+export const getTokenResponse = (user: UserDto, statusCode: number, res: express.Response): void => {
+  const token: string = getSignedJwtToken(user.id);
+
+  const options = {
+    expires: new Date(Date.now() + 30 * (24 * 60 * 60 * 1000)),
+    httpOnly: true,
+  };
+
+  res.status(statusCode).cookie('token', token, options).json({
+    success: true,
+    token,
+  });
 };

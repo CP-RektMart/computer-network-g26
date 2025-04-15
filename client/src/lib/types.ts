@@ -2,6 +2,15 @@ export interface User {
   id: number
   username: string
   email: string
+  lastLoginAt?: Date
+  registeredAt?: Date
+  isOnline?: boolean
+}
+
+export interface Participant extends User {
+  role: string
+  joinedAt?: Date
+  isLeaved: boolean
 }
 
 export interface Chat {
@@ -9,17 +18,22 @@ export interface Chat {
   name: string
   isGroup: boolean
   lastMessage: string
-  timestamp: string
-  avatar: string
+  lastSentAt: string
   unread: number
-  participants: User[]
+  messageCount: number
+  participants: Participant[]
 }
 
 export interface Message {
   id: string
   chatId: string
-  senderId: number
-  text: string
-  timestamp: string
+  senderType: string
+  senderId: number | null
+  text?: string
+
+  action?: 'group-join' | 'group-leave'
+  targetUserId?: number
+
+  sentAt: string
   isEdited: boolean
 }

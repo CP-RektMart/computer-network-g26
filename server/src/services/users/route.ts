@@ -1,11 +1,16 @@
 import * as express from 'express';
 import { body, validationResult } from 'express-validator';
 
-import { registerUser, getUserById, getUserByUsername, loginUser, updateUsername } from './controller';
+import { registerUser, getUserById, getUserByUsername, loginUser, updateUsername, getChat, getAllUsers } from './controller';
 import { validateRegisterUser, protect } from '@/middleware/auth';
 import { getSignedJwtToken } from './utils';
 
 const router = express.Router();
+
+router.get('/', async (req: express.Request, res: express.Response): Promise<void> => {
+  const users = await getAllUsers();
+  res.status(200).json(users);
+});
 
 /**
  * @swagger
@@ -53,6 +58,7 @@ router.post('/', validateRegisterUser, async (req: express.Request, res: express
   res.status(201).json({ message: 'User registered successfully', user });
 });
 
+// TODO: fix swagger
 /**
  * @swagger
  * /api/users/login:
@@ -114,7 +120,7 @@ router.post('/login', async (req: express.Request, res: express.Response): Promi
       return;
     }
 
-    const token = getSignedJwtToken(user);
+    const token = getSignedJwtToken(user.id);
 
     res.status(200).json({
       success: true,
@@ -129,6 +135,7 @@ router.post('/login', async (req: express.Request, res: express.Response): Promi
   }
 });
 
+// TODO: fix swagger
 /**
  * @swagger
  * /api/users/logout:
@@ -164,6 +171,7 @@ router.post('/logout', protect, (req: express.Request, res: express.Response): v
   });
 });
 
+// TODO: fix swagger
 /**
  * @swagger
  * /api/users/me:
@@ -214,6 +222,24 @@ router.get('/me', protect, async (req: express.Request, res: express.Response): 
   res.status(200).json(user);
 });
 
+router.get('/me/chat', protect, async (req: express.Request, res: express.Response): Promise<void> => {
+  const userId: number = (req as any).userId;
+
+  if (!userId) {
+    res.status(401).json({ message: 'Unauthorized' });
+    return;
+  }
+
+  const chat = await getChat(userId);
+  if (!chat) {
+    res.status(404).json({ message: 'Chat not found' });
+    return;
+  }
+
+  res.status(200).json(chat);
+});
+
+// TODO: fix swagger
 /**
  * @swagger
  * /api/users/{id}:
@@ -250,6 +276,7 @@ router.get('/:id', async (req: express.Request, res: express.Response): Promise<
   res.status(200).json(user);
 });
 
+// TODO: fix swagger
 /**
  * @swagger
  * /api/users/username/{username}:
@@ -348,3 +375,5 @@ router.put(
 );
 
 export default router;
+
+//TODO: PATCH route for updating user info and broadcast to all participants (socket-room-participant-update RoomActivityDto)
