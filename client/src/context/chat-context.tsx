@@ -346,9 +346,16 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       const { destination: chatId, body: message } = res
       const unsentMessageId = message.id
+
+      const chatMessages = messages[chatId] ?? []
+      if (
+        chatMessages.length > 1 &&
+        chatMessages[chatMessages.length - 1].id === unsentMessageId
+      ) {
+        updateChatLastMessage(chatId, chatMessages[chatMessages.length - 2])
+      }
+
       removeMessage(chatId, unsentMessageId)
-      const updateLastMessage = messages[chatId].slice(-1)[0]
-      updateChatLastMessage(chatId, updateLastMessage)
     })
 
     return () => {
