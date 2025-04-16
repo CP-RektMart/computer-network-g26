@@ -287,3 +287,21 @@ export const updateMessage = async (messageId: string, content: InputJsonValue) 
     isEdited: updatedMessage.isEdited,
   };
 }
+
+// unsend message
+export const unsendMessage = async (messageId: string) => {
+  const deletedMessage = await prisma.message.delete({
+    where: {
+      id: messageId,
+    },
+  });
+
+  return {
+    id: deletedMessage.id,
+    senderType: deletedMessage.senderType,
+    senderId: deletedMessage.senderId,
+    sentAt: deletedMessage.sentAt,
+    content: deletedMessage.content as MessageContentDto,
+    isEdited: deletedMessage.isEdited,
+  };
+}

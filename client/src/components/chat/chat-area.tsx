@@ -44,6 +44,7 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
     leaveGroup,
     createDirect,
     editMessage,
+    unsendMessage,
   } = useChat()
   const [messageText, setMessageText] = useState('')
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
@@ -105,6 +106,8 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
     // This would call the API to delete the message
     // For now, just log it
     console.log('Delete message:', messageId)
+    unsendMessage(messageId)
+    setEditingMessageId(null)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
