@@ -333,7 +333,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         chatMessages.length > 0 &&
         chatMessages[chatMessages.length - 1].id === updatedMessage.id
       ) {
-        updateChatLastMessage(chatId, updatedMessage)
+        updateChatLastMessageOnly(chatId, updatedMessage)
       }
     })
 
@@ -351,7 +351,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         chatMessages.length > 1 &&
         chatMessages[chatMessages.length - 1].id === unsentMessageId
       ) {
-        updateChatLastMessage(chatId, chatMessages[chatMessages.length - 2])
+        updateChatLastMessageOnly(chatId, chatMessages[chatMessages.length - 2])
       }
 
       removeMessage(chatId, unsentMessageId)
@@ -391,6 +391,16 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       unread: selectedChat?.id === chatId ? 0 : (chat.unread || 0) + 1,
     })
     sortByLastSentAt()
+  }
+
+  // Updates last message only, does not affect unread count
+  const updateChatLastMessageOnly = (chatId: string, message: Message) => {
+    const chat = findChat(chatId)
+    if (!chat) return
+    updateChat({
+      id: chatId,
+      lastMessage: message.text,
+    })
   }
 
   // Select a chat
