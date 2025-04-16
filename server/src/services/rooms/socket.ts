@@ -148,30 +148,30 @@ export const onSocketRoomEditMessage = (socket: ChatSocket) => async (req: any) 
     const { destination, body }: { destination: string; body: MessageDto } = req;
 
     if (!destination) {
-      socket.emit(channelName.editMessage, socketErrorResponse('Destination is missing'));
+      socket.emit(channelName.unsendMessage, socketErrorResponse('Destination is missing'));
       return;
     }
 
     if (!body) {
-      socket.emit(channelName.editMessage, socketErrorResponse('Invalid request: body is missing'));
+      socket.emit(channelName.unsendMessage, socketErrorResponse('Invalid request: body is missing'));
       return;
     }
 
     if (!body.id || !body.senderId) {
       console.log(body);
-      socket.emit(channelName.editMessage, socketErrorResponse(`Invalid request: message is invalid (content, senderId)`));
+      socket.emit(channelName.unsendMessage, socketErrorResponse(`Invalid request: message is invalid (content, senderId)`));
       return;
     }
 
-    logConnection(socket, channelName.editMessage, destination);
+    logConnection(socket, channelName.unsendMessage, destination);
 
     try {
       const savedMessage = await unsendMessage(body.id);
 
       const res = socketResponse('ok').destination(destination).withBody(savedMessage);
-      io.to(`${destination}`).emit(channelName.editMessage, res);
+      io.to(`${destination}`).emit(channelName.unsendMessage, res);
     } catch (error) {
-      console.error('Error in handleEditMessage:', error);
-      socket.emit(channelName.editMessage, socketErrorResponse('Failed to edit message'));
+      console.error('Error in handleUnsendMessage:', error);
+      socket.emit(channelName.unsendMessage, socketErrorResponse('Failed to unsend message'));
     }
   }
