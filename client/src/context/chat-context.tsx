@@ -10,7 +10,6 @@ import { getToken, useUser } from './user-context'
 import type { Socket } from 'socket.io-client'
 import type { Chat, Message, Participant, User } from '@/lib/types'
 import { useChatHelper, useChatMessagesHelper } from '@/lib/helpers'
-import { m } from 'motion/react'
 
 interface ChatContextType {
   socketRef: React.RefObject<Socket | null>
