@@ -265,3 +265,43 @@ export const updateLastSeenInRoom = async (userId: number, roomId: string) => {
     },
   });
 };
+
+// update message content
+export const updateMessage = async (messageId: string, content: InputJsonValue) => {
+  const updatedMessage = await prisma.message.update({
+    where: {
+      id: messageId,
+    },
+    data: {
+      content,
+      isEdited: true,
+    },
+  });
+
+  return {
+    id: updatedMessage.id,
+    senderType: updatedMessage.senderType,
+    senderId: updatedMessage.senderId,
+    sentAt: updatedMessage.sentAt,
+    content: updatedMessage.content as MessageContentDto,
+    isEdited: updatedMessage.isEdited,
+  };
+}
+
+// unsend message
+export const unsendMessage = async (messageId: string) => {
+  const deletedMessage = await prisma.message.delete({
+    where: {
+      id: messageId,
+    },
+  });
+
+  return {
+    id: deletedMessage.id,
+    senderType: deletedMessage.senderType,
+    senderId: deletedMessage.senderId,
+    sentAt: deletedMessage.sentAt,
+    content: deletedMessage.content as MessageContentDto,
+    isEdited: deletedMessage.isEdited,
+  };
+}
