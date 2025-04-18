@@ -267,3 +267,27 @@ export const updateUsername = async (userId: number, newUsername: string): Promi
 // TODO: isUserOnline
 // TODO: updateUserOnline
 // TODO: updateUserOffline
+
+export const isUserOnline = async (userId: number): Promise<boolean> => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { isOnline: true },
+  });
+
+  return user?.isOnline ?? false;
+};
+
+export const updateUserOnline = async (userId: number): Promise<void> => {
+  await prisma.user.update({
+    where: { id: userId },
+    data: { isOnline: true },
+  });
+};
+
+export const updateUserOffline = async (userId: number): Promise<void> => {
+  await prisma.user.update({
+    where: { id: userId },
+    data: { isOnline: false },
+  });
+};
+

@@ -7,6 +7,8 @@ import { ChatSocket, socketResponse } from '@/type';
 import { isUserExistById } from '@/services/users/controller';
 import { updateLastSeenInRoom } from './services/rooms/controller';
 import { onSocketRoomConnect, onSocketRoomMessage, onSocketRoomOpening, onSocketRoomEditMessage, onSocketRoomUnsendMessage } from './services/rooms/socket';
+import { handlerSocketUserOnlineStatus, onSocketUserOfflineStatus } from '@/services/users/socket';
+
 
 export let io: Server;
 export const userSocketMap = new Map<number, string[]>();
@@ -94,13 +96,22 @@ const setupSocket = (server: HttpServer): Server => {
     addUserSocket(socket.userId!, socket.id);
 
     // TODO: call handlerSocketUserOnlineStatus
+    await handlerSocketUserOnlineStatus(socket.userId!);
+
 
     socket.on(channelName.connectRoom, onSocketRoomConnect(socket));
     socket.on(channelName.openingRoom, onSocketRoomOpening(socket));
     socket.on(channelName.message, onSocketRoomMessage(socket));
     socket.on(channelName.editMessage, onSocketRoomEditMessage(socket));
     socket.on(channelName.unsendMessage, onSocketRoomUnsendMessage(socket));
+    
     // TODO: socket-room-online-status
+    socket.on(channelName.onlineStatus, async () => {
+      if (socket.userId) {
+        await handlerSocketUserOnlineStatus(socket.userId);
+      }
+    });
+    
 
     socket.on('disconnect', async () => {
       logConnection(socket, 'Disconnected');
@@ -113,6 +124,8 @@ const setupSocket = (server: HttpServer): Server => {
       }
 
       // TODO: call handlerSocketUserOfflineStatus
+      await onSocketUserOfflineStatus(socket.userId!);
+
 
       removeUserSocket(socket.userId!, socket.id);
       socket.leave(socket.id);
