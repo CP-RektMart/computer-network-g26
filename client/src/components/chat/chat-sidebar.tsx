@@ -130,9 +130,6 @@ export default function ChatSidebar({
     return matchesSearch && matchesType
   })
 
-  // console.log('Online users:', onlineUserIds)
-  console.log('Filtered chats:', filteredChats)
-
   return (
     <>
       {/* Mobile menu button */}
@@ -153,11 +150,16 @@ export default function ChatSidebar({
           {/* User profile */}
           <div className="flex items-center justify-between border-b p-4">
             <div className="flex items-center space-x-3">
-              <Avatar>
-                <AvatarFallback>
-                  {currentUser?.username ? currentUser.username.charAt(0) : '?'}
-                </AvatarFallback>
-              </Avatar>
+              <div className="relative">
+                <Avatar className='h-8 w-8'>
+                  <AvatarFallback>
+                    {currentUser?.username
+                      ? currentUser.username.charAt(0)
+                      : '?'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute inset-0 rounded-full border-2 border-green-500" />
+              </div>
               <div>
                 <h3 className="font-medium">{currentUser?.username}</h3>
                 <p className="text-xs text-gray-500">{currentUser?.email}</p>

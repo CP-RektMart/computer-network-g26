@@ -1,11 +1,20 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Edit, LogOut, Menu, MoreVertical, Send, SmilePlus, Trash2 } from 'lucide-react'
+import {
+  Edit,
+  LogOut,
+  Menu,
+  MoreVertical,
+  Send,
+  SmilePlus,
+  Trash2,
+} from 'lucide-react'
+import { formatDistanceToNow } from 'date-fns'
+import { emojiCategories, flatEmojiList } from './chat-emoji'
 import type { Message } from '@/lib/types'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { DotPattern } from '@/components/ui/dot-pattern'
-import { formatDistanceToNow } from 'date-fns'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +25,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import { useChat } from '@/context/chat-context'
+import { useChat, useOnlineUsers } from '@/context/chat-context'
 import { useUser } from '@/context/user-context'
 import {
   Dialog,
@@ -26,7 +35,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { flatEmojiList, emojiCategories } from './chat-emoji'
 
 interface ChatAreaProps {
   setIsMobileMenuOpen: (open: boolean) => void
@@ -34,6 +42,7 @@ interface ChatAreaProps {
 
 export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
   const { user } = useUser()
+  const onlineUserIds = useOnlineUsers()
   const {
     selectedChat,
     messages,
@@ -57,15 +66,17 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
 
   const currentChatMessages = selectedChat ? messages[selectedChat.id] : []
 
-  type EmojiCategory = keyof typeof emojiCategories;
+  type EmojiCategory = keyof typeof emojiCategories
 
-  const [selectedCategory, setSelectedCategory] = useState<EmojiCategory | 'all'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<
+    EmojiCategory | 'all'
+  >('all')
   const getFilteredEmojis = () => {
     if (selectedCategory === 'all') {
-      return flatEmojiList;
+      return flatEmojiList
     }
-    return emojiCategories[selectedCategory] || [];
-  };
+    return emojiCategories[selectedCategory] || []
+  }
 
   useEffect(() => {
     if (chatAreaScrollDown) {
@@ -190,6 +201,8 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
     (p) => user && p.id === user.id,
   )
 
+  console.log(selectedChat)
+
   return (
     <div className="flex flex-1 flex-col bg-white md:border md:border-input md:rounded-2xl">
       {/* Mobile menu toggle */}
@@ -204,13 +217,20 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
 
       <div className="flex gap-5 p-4">
         {/* Avatar */}
-        <Avatar>
-          {/* Uncomment if you have avatar URLs */}
-          {/* <AvatarImage src={selectedChat.isGroup ? selectedChat.avatar : otherUser?.avatar} alt="avatar" /> */}
-          <AvatarFallback>
-            {selectedChat.name ? selectedChat.name.charAt(0) : '?'}
-          </AvatarFallback>
-        </Avatar>
+        <div className="relative">
+          <Avatar className="h-8 w-8">
+            <AvatarFallback>
+              {selectedChat.name ? selectedChat.name.charAt(0) : '?'}
+            </AvatarFallback>
+            {selectedChat.participants.some(
+              (p) =>
+                p.id !== user?.id &&
+                onlineUserIds.some((onlineUser) => onlineUser.id === p.id),
+            ) && (
+              <div className="absolute inset-0 rounded-full border-2 border-green-500" />
+            )}
+          </Avatar>
+        </div>
 
         {/* Chat Info */}
         <div className="flex items-center justify-between w-full">
@@ -264,13 +284,21 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                               }}
                             >
                               <div className="flex items-center gap-2">
-                                <Avatar>
-                                  <AvatarFallback>
-                                    {participant.username
-                                      ? participant.username.charAt(0)
-                                      : '?'}
-                                  </AvatarFallback>
-                                </Avatar>
+                                <div className="relative">
+                                  <Avatar>
+                                    <AvatarFallback>
+                                      {participant.username
+                                        ? participant.username.charAt(0)
+                                        : '?'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  {onlineUserIds.some(
+                                    (onlineUser) =>
+                                      onlineUser.id === participant.id,
+                                  ) && (
+                                    <div className="absolute inset-0 rounded-full border-2 border-green-500" />
+                                  )}
+                                </div>
                                 {participant.username.length > 10
                                   ? `${participant.username.slice(0, 10)}...`
                                   : participant.username}
@@ -291,9 +319,9 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                                   className={cn(
                                     'ml-2 text-xs',
                                     participant.role === 'admin' &&
-                                    'bg-red-100 text-red-700',
+                                      'bg-red-100 text-red-700',
                                     participant.role === 'member' &&
-                                    'bg-blue-100 text-blue-700',
+                                      'bg-blue-100 text-blue-700',
                                   )}
                                 >
                                   {participant.role}
@@ -372,14 +400,26 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                 >
                   {message.senderType === 'user' ? (
                     <div
-                      className={`max-w-[70%] ${isCurrentUser
-                        ? 'rounded-lg bg-primary text-white'
-                        : 'rounded-lg bg-gray-100 text-gray-900'
-                        } overflow-hidden`}
+                      className={`max-w-[70%] ${
+                        isCurrentUser
+                          ? 'rounded-lg bg-primary text-white'
+                          : 'rounded-lg bg-gray-100 text-gray-900'
+                      } overflow-hidden`}
                     >
                       {!isCurrentUser && selectedChat.isGroup && (
                         <div className="border-b border-gray-200 px-4 py-2 text-xs font-medium">
-                          {sender?.username || 'Unknown user'}
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={`h-2 w-2 rounded-full ${
+                                onlineUserIds.some(
+                                  (onlineUser) => onlineUser.id === sender?.id,
+                                )
+                                  ? 'bg-green-500'
+                                  : 'bg-gray-300'
+                              }`}
+                            />
+                            {sender?.username || 'Unknown user'}
+                          </div>
                         </div>
                       )}
 
@@ -523,18 +563,15 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
               </Button>
             </DropdownMenuTrigger>
 
-            <DropdownMenuContent
-              className="mb-2 "
-              align="end"
-              side="top"
-            >
+            <DropdownMenuContent className="mb-2 " align="end" side="top">
               <div className="max-w-[420px] overflow-x-auto whitespace-nowrap pb-2 flex space-x-2">
                 <Button
                   onClick={() => setSelectedCategory('all')}
-                  className={`shrink-0 ${selectedCategory === 'all'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-200 text-gray-600 hover:text-black'
-                    }`}
+                  className={`shrink-0 ${
+                    selectedCategory === 'all'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-200 text-gray-600 hover:text-black'
+                  }`}
                 >
                   All
                 </Button>
@@ -542,24 +579,29 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                 {Object.keys(emojiCategories).map((category) => (
                   <Button
                     key={category}
-                    onClick={() => setSelectedCategory(category as EmojiCategory)}
-                    className={`shrink-0 ${selectedCategory === category
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-200 text-gray-600 hover:text-black'
-                      }`}
+                    onClick={() =>
+                      setSelectedCategory(category as EmojiCategory)
+                    }
+                    className={`shrink-0 ${
+                      selectedCategory === category
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-200 text-gray-600 hover:text-black'
+                    }`}
                   >
                     {category.charAt(0).toUpperCase() + category.slice(1)}
                   </Button>
                 ))}
               </div>
-              <div className='grid grid-cols-10 gap-1 overflow-y-auto min-h-50 max-h-50'>
+              <div className="grid grid-cols-10 gap-1 overflow-y-auto min-h-50 max-h-50">
                 {getFilteredEmojis().map((emoji, i) => (
-                  <DropdownMenuItem key={i} onClick={() => setMessageText(messageText + emoji)}>
+                  <DropdownMenuItem
+                    key={i}
+                    onClick={() => setMessageText(messageText + emoji)}
+                  >
                     {emoji}
                   </DropdownMenuItem>
                 ))}
               </div>
-
             </DropdownMenuContent>
           </DropdownMenu>
           <Button
@@ -572,6 +614,6 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
           </Button>
         </form>
       </div>
-    </div >
+    </div>
   )
 }
