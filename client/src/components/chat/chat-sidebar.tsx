@@ -40,7 +40,14 @@ export default function ChatSidebar({
   setIsMobileMenuOpen,
 }: ChatSidebarProps) {
   const { user: currentUser, updateUsername, logout } = useUser()
-  const { chats, selectedChat, selectChat, createDirect, createGroup, joinGroup } = useChat()
+  const {
+    chats,
+    selectedChat,
+    selectChat,
+    createDirect,
+    createGroup,
+    joinGroup,
+  } = useChat()
   const onlineUserIds = useOnlineUsers()
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -111,17 +118,21 @@ export default function ChatSidebar({
 
   const filteredChats = chats.filter((chat) => {
     const resolvedName = chat.isGroup
-      ? chat.name ?? ''
-      : chat.participants?.find(p => currentUser && p.id !== currentUser.id)?.username ?? '';
+      ? (chat.name ?? '')
+      : (chat.participants?.find((p) => currentUser && p.id !== currentUser.id)
+          ?.username ?? '')
 
-
-    const matchesSearch = resolvedName.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesSearch = resolvedName
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase())
     let matchesType = true
     if (chatTypeFilter !== 'all') {
       matchesType = chatTypeFilter === 'group' ? chat.isGroup : !chat.isGroup
     }
     return matchesSearch && matchesType
   })
+
+  // console.log('Filtered chats:', filteredChats)
 
   return (
     <>
@@ -135,8 +146,9 @@ export default function ChatSidebar({
 
       {/* Sidebar */}
       <div
-        className={`${isMobileMenuOpen ? 'translate-x-0 pt-14' : '-translate-x-full'
-          } fixed inset-y-0 left-0 z-40 w-80 transform md:border md:border-input bg-white md:rounded-2xl transition-transform duration-300 ease-in-out md:relative md:translate-x-0`}
+        className={`${
+          isMobileMenuOpen ? 'translate-x-0 pt-14' : '-translate-x-full'
+        } fixed inset-y-0 left-0 z-40 w-80 transform md:border md:border-input bg-white md:rounded-2xl transition-transform duration-300 ease-in-out md:relative md:translate-x-0`}
       >
         <div className="flex h-full flex-col">
           {/* User profile */}
@@ -230,9 +242,7 @@ export default function ChatSidebar({
                     <div className="max-h-60 space-y-2 overflow-y-auto rounded-md border p-2">
                       {users
                         ?.filter(
-                          (user) =>
-                            currentUser &&
-                            user.id !== currentUser.id,
+                          (user) => currentUser && user.id !== currentUser.id,
                         )
                         .map((user) => (
                           <div
@@ -259,6 +269,12 @@ export default function ChatSidebar({
                                 </p>
                               </div>
                             </div>
+                            {/* Updated online status indicator */}
+                            {onlineUserIds.some(
+                              (onlineUser) => onlineUser.id === user.id,
+                            ) && (
+                              <div className="h-2 w-2 rounded-full bg-green-500" />
+                            )}
                           </div>
                         ))}
                     </div>
@@ -294,17 +310,16 @@ export default function ChatSidebar({
                       <div className="max-h-60 space-y-2 overflow-y-auto rounded-md border p-2">
                         {users
                           ?.filter(
-                            (user) =>
-                              currentUser &&
-                              user.id !== currentUser.id,
+                            (user) => currentUser && user.id !== currentUser.id,
                           )
                           .map((user) => (
                             <div
                               key={user.id}
-                              className={`flex cursor-pointer items-center justify-between rounded-md p-2 ${selectedUsers.some((u) => u.id === user.id)
-                                ? 'bg-gray-100'
-                                : ''
-                                }`}
+                              className={`flex cursor-pointer items-center justify-between rounded-md p-2 ${
+                                selectedUsers.some((u) => u.id === user.id)
+                                  ? 'bg-gray-100'
+                                  : ''
+                              }`}
                               onClick={() => toggleUserSelection(user)}
                             >
                               <div className="flex items-center space-x-3">
@@ -333,7 +348,9 @@ export default function ChatSidebar({
                       <Button
                         className="w-full"
                         onClick={handleCreateGroup}
-                        disabled={!newGroupName.trim() || selectedUsers.length === 0}
+                        disabled={
+                          !newGroupName.trim() || selectedUsers.length === 0
+                        }
                       >
                         Create Group
                       </Button>
@@ -363,9 +380,11 @@ export default function ChatSidebar({
                         onChange={(e) => setGroupIdToJoin(e.target.value)}
                       />
                     </div>
-                    <DialogClose className="w-full bg-blue-700 text-white rounded-md p-2 text-center hover:bg-blue-600 transition-colors duration-200 ease-in-out" 
+                    <DialogClose
+                      className="w-full bg-blue-700 text-white rounded-md p-2 text-center hover:bg-blue-600 transition-colors duration-200 ease-in-out"
                       onClick={handleJoinGroup}
-                      disabled={!groupIdToJoin.trim()}>
+                      disabled={!groupIdToJoin.trim()}
+                    >
                       Join Group
                     </DialogClose>
                   </div>
@@ -389,10 +408,11 @@ export default function ChatSidebar({
                 filteredChats.map((chat) => (
                   <div
                     key={chat.id}
-                    className={`flex cursor-pointer items-center justify-between rounded-md p-3 ${selectedChat?.id === chat.id
-                      ? 'bg-gray-100'
-                      : 'hover:bg-gray-50'
-                      }`}
+                    className={`flex cursor-pointer items-center justify-between rounded-md p-3 ${
+                      selectedChat?.id === chat.id
+                        ? 'bg-gray-100'
+                        : 'hover:bg-gray-50'
+                    }`}
                     onClick={() => {
                       selectChat(chat)
                       setIsMobileMenuOpen(false)
@@ -421,7 +441,9 @@ export default function ChatSidebar({
                     </div>
                     <div className="flex flex-col self-start items-end space-y-1">
                       <span className="text-xs text-gray-500">
-                        {chat.lastSentAt ? formatDistanceToNow(chat.lastSentAt) : ''}
+                        {chat.lastSentAt
+                          ? formatDistanceToNow(chat.lastSentAt)
+                          : ''}
                       </span>
                       {chat.unread > 0 && (
                         <Badge className="h-5 w-5 rounded-full p-0 flex items-center justify-center bg-red-500">

@@ -761,7 +761,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         fetchMessageToChat,
       }}
     >
-      {children}
       <OnlineUserContext.Provider value={onlineUsers}>
         {children}
       </OnlineUserContext.Provider>
