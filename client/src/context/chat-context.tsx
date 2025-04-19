@@ -54,6 +54,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     addOrUpdateMessageAtLast,
     removeMessage,
   } = useChatMessagesHelper(messages, setMessages)
+  const [onlineUsers, setOnlineUsers] = useState<Set<number>>(new Set())
   const socketRef = useRef<Socket | null>(null)
   const [loadingChats, setLoadingChats] = useState(false)
   const [loadingMessages, setLoadingMessages] = useState(false)
@@ -190,6 +191,27 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     // Listen for direct message events
     if (!socketRef.current) return
+
+    socketRef.current.on('socket-room-online-status', (res: any) => {
+      // console.log('Socket Room Online Status:', res)
+      if (res.status === 'ok') {
+       const fetchOnlineUsers = async () => {
+        try {
+          const response = await fetch(
+            `${import.meta.env.VITE_API_URL}/api/users/online`,
+          )
+          if (!response.ok) {
+            throw new Error('Failed to fetch online users')
+          }
+          const data = await response.json()
+          console.log('Online users:', data)
+          // setOnlineUsers(new Set(data.map((user: any) => user.id)))
+        }catch (error) {
+          console.error('Error fetching online users:', error)
+        }
+      }
+      fetchOnlineUsers()
+    }})
 
     socketRef.current.on('socket-room-message', (res) => {
       console.log('Message received:', res)

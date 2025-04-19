@@ -291,3 +291,26 @@ export const updateUserOffline = async (userId: number): Promise<void> => {
   });
 };
 
+export const getAllOnlineUsers = async (): Promise<UserDto[]> => {
+  const users = await prisma.user.findMany({
+    where: { isOnline: true },
+    select: {
+      id: true,
+      email: true,
+      username: true,
+      registeredAt: true,
+      lastLoginAt: true,
+      isOnline: true,
+    },
+  });
+
+  return users.map((user) => ({
+    id: user.id,
+    email: user.email,
+    username: user.username,
+    registeredAt: user.registeredAt,
+    lastLoginAt: user.lastLoginAt,
+    isOnline: user.isOnline,
+  }));
+};
+
