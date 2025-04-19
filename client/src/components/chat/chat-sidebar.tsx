@@ -58,8 +58,6 @@ export default function ChatSidebar({
   const [chatTypeFilter, setChatTypeFilter] = useState('all')
   const [openContactsDialog, setOpenContactsDialog] = useState(false)
 
-  console.log('Online users:', onlineUserIds)
-
   const fetchUsers = async (): Promise<User[]> => {
     const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users`, {
       headers: {
@@ -132,7 +130,8 @@ export default function ChatSidebar({
     return matchesSearch && matchesType
   })
 
-  // console.log('Filtered chats:', filteredChats)
+  // console.log('Online users:', onlineUserIds)
+  console.log('Filtered chats:', filteredChats)
 
   return (
     <>
@@ -255,11 +254,18 @@ export default function ChatSidebar({
                             }}
                           >
                             <div className="flex items-center space-x-3">
-                              <Avatar className="h-8 w-8">
-                                <AvatarFallback>
-                                  {user.username.charAt(0)}
-                                </AvatarFallback>
-                              </Avatar>
+                              <div className="relative">
+                                <Avatar className="h-8 w-8">
+                                  <AvatarFallback>
+                                    {user.username.charAt(0)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                {onlineUserIds.some(
+                                  (onlineUser) => onlineUser.id === user.id,
+                                ) && (
+                                  <div className="absolute inset-0 rounded-full border-2 border-green-500" />
+                                )}
+                              </div>
                               <div>
                                 <p className="text-sm font-medium">
                                   {user.username}
@@ -269,12 +275,6 @@ export default function ChatSidebar({
                                 </p>
                               </div>
                             </div>
-                            {/* Updated online status indicator */}
-                            {onlineUserIds.some(
-                              (onlineUser) => onlineUser.id === user.id,
-                            ) && (
-                              <div className="h-2 w-2 rounded-full bg-green-500" />
-                            )}
                           </div>
                         ))}
                     </div>
@@ -323,11 +323,19 @@ export default function ChatSidebar({
                               onClick={() => toggleUserSelection(user)}
                             >
                               <div className="flex items-center space-x-3">
-                                <Avatar className="h-8 w-8">
-                                  <AvatarFallback>
-                                    {user.username.charAt(0)}
-                                  </AvatarFallback>
-                                </Avatar>
+                                <div className="relative">
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarFallback>
+                                      {user.username.charAt(0)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  {/* Green ring for online status */}
+                                  {onlineUserIds.some(
+                                    (onlineUser) => onlineUser.id === user.id,
+                                  ) && (
+                                    <div className="absolute inset-0 rounded-full border-2 border-green-500" />
+                                  )}
+                                </div>
                                 <div>
                                   <p className="text-sm font-medium">
                                     {user.username}
@@ -405,54 +413,88 @@ export default function ChatSidebar({
           <ScrollArea className="flex-1 overflow-auto">
             <div className="space-y-1 p-2">
               {filteredChats.length > 0 ? (
-                filteredChats.map((chat) => (
-                  <div
-                    key={chat.id}
-                    className={`flex cursor-pointer items-center justify-between rounded-md p-3 ${
-                      selectedChat?.id === chat.id
-                        ? 'bg-gray-100'
-                        : 'hover:bg-gray-50'
-                    }`}
-                    onClick={() => {
-                      selectChat(chat)
-                      setIsMobileMenuOpen(false)
-                    }}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <Avatar>
-                        <AvatarFallback>
-                          {chat.name ? chat.name.charAt(0) : '?'}
-                        </AvatarFallback>
-                      </Avatar>
+                filteredChats.map((chat) => {
+                  const otherParticipant = !chat.isGroup
+                    ? chat.participants?.find(
+                        (p) => currentUser && p.id !== currentUser.id,
+                      )
+                    : null
 
-                      <div>
-                        <div className="flex items-center">
-                          <h3 className="font-medium">{chat.name}</h3>
-                          {chat.isGroup && (
-                            <Badge className="ml-2 bg-blue-100 text-blue-700 text-xs">
-                              Group
-                            </Badge>
-                          )}
+                  const isDirectOnline = otherParticipant
+                    ? onlineUserIds.some((u) => u.id === otherParticipant.id)
+                    : false
+
+                  const isGroupOnline = chat.isGroup
+                    ? chat.participants?.some(
+                        (p) =>
+                          p.id !== currentUser?.id &&
+                          onlineUserIds.some(
+                            (onlineUser) => onlineUser.id === p.id,
+                          ),
+                      )
+                    : false
+
+                  return (
+                    <div
+                      key={chat.id}
+                      className={`flex cursor-pointer items-center justify-between rounded-md p-3 ${
+                        selectedChat?.id === chat.id
+                          ? 'bg-gray-100'
+                          : 'hover:bg-gray-50'
+                      }`}
+                      onClick={() => {
+                        selectChat(chat)
+                        setIsMobileMenuOpen(false)
+                      }}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="relative">
+                          <div className="relative">
+                            <Avatar
+                              className={
+                                isDirectOnline || isGroupOnline
+                                  ? 'border-2 border-transparent'
+                                  : ''
+                              }
+                            >
+                              <AvatarFallback>
+                                {chat.name ? chat.name.charAt(0) : '?'}
+                              </AvatarFallback>
+                            </Avatar>
+                            {(isDirectOnline || isGroupOnline) && (
+                              <div className="absolute inset-0 rounded-full border-2 border-green-500" />
+                            )}
+                          </div>
                         </div>
-                        <p className="text-sm text-gray-500 line-clamp-1">
-                          {chat.lastMessage}
-                        </p>
+                        <div>
+                          <div className="flex items-center">
+                            <h3 className="font-medium">{chat.name}</h3>
+                            {chat.isGroup && (
+                              <Badge className="ml-2 bg-blue-100 text-blue-700 text-xs">
+                                Group
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-500 line-clamp-1">
+                            {chat.lastMessage}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col self-start items-end space-y-1">
+                        <span className="text-xs text-gray-500">
+                          {chat.lastSentAt
+                            ? formatDistanceToNow(chat.lastSentAt)
+                            : ''}
+                        </span>
+                        {chat.unread > 0 && (
+                          <Badge className="h-5 w-5 rounded-full p-0 flex items-center justify-center bg-red-500">
+                            {chat.unread}
+                          </Badge>
+                        )}
                       </div>
                     </div>
-                    <div className="flex flex-col self-start items-end space-y-1">
-                      <span className="text-xs text-gray-500">
-                        {chat.lastSentAt
-                          ? formatDistanceToNow(chat.lastSentAt)
-                          : ''}
-                      </span>
-                      {chat.unread > 0 && (
-                        <Badge className="h-5 w-5 rounded-full p-0 flex items-center justify-center bg-red-500">
-                          {chat.unread}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                ))
+                  )
+                })
               ) : (
                 <div className="p-4 text-center text-gray-500">
                   No conversations found
