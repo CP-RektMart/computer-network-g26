@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Edit, LogOut, Menu, MoreVertical, Send, Trash2 } from 'lucide-react'
+import { Edit, LogOut, Menu, MoreVertical, Send, SmilePlus, Trash2 } from 'lucide-react'
 import type { Message } from '@/lib/types'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -26,6 +26,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { flatEmojiList, emojiCategories } from './chat-emoji'
 
 interface ChatAreaProps {
   setIsMobileMenuOpen: (open: boolean) => void
@@ -55,6 +56,16 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
   const fetchMessageLimit = 20
 
   const currentChatMessages = selectedChat ? messages[selectedChat.id] : []
+
+  type EmojiCategory = keyof typeof emojiCategories;
+
+  const [selectedCategory, setSelectedCategory] = useState<EmojiCategory | 'all'>('all');
+  const getFilteredEmojis = () => {
+    if (selectedCategory === 'all') {
+      return flatEmojiList;
+    }
+    return emojiCategories[selectedCategory] || [];
+  };
 
   useEffect(() => {
     if (chatAreaScrollDown) {
@@ -280,9 +291,9 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                                   className={cn(
                                     'ml-2 text-xs',
                                     participant.role === 'admin' &&
-                                      'bg-red-100 text-red-700',
+                                    'bg-red-100 text-red-700',
                                     participant.role === 'member' &&
-                                      'bg-blue-100 text-blue-700',
+                                    'bg-blue-100 text-blue-700',
                                   )}
                                 >
                                   {participant.role}
@@ -361,11 +372,10 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                 >
                   {message.senderType === 'user' ? (
                     <div
-                      className={`max-w-[70%] ${
-                        isCurrentUser
-                          ? 'rounded-lg bg-primary text-white'
-                          : 'rounded-lg bg-gray-100 text-gray-900'
-                      } overflow-hidden`}
+                      className={`max-w-[70%] ${isCurrentUser
+                        ? 'rounded-lg bg-primary text-white'
+                        : 'rounded-lg bg-gray-100 text-gray-900'
+                        } overflow-hidden`}
                     >
                       {!isCurrentUser && selectedChat.isGroup && (
                         <div className="border-b border-gray-200 px-4 py-2 text-xs font-medium">
@@ -502,6 +512,56 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
             onChange={(e) => setMessageText(e.target.value)}
             className="flex-1 h-10 py-2 px-4 bg-gray-100 rounded-full border-none text-sm md:text-base"
           />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                className="rounded-full bg-gray-200 text-gray-500 hover:bg-gray-300 hover:text-black active:bg-gray-400 active:text-gray-700"
+                size="icon"
+              >
+                <SmilePlus className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent
+              className="mb-2 "
+              align="end"
+              side="top"
+            >
+              <div className="max-w-[420px] overflow-x-auto whitespace-nowrap pb-2 flex space-x-2">
+                <Button
+                  onClick={() => setSelectedCategory('all')}
+                  className={`shrink-0 ${selectedCategory === 'all'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-200 text-gray-600 hover:text-black'
+                    }`}
+                >
+                  All
+                </Button>
+
+                {Object.keys(emojiCategories).map((category) => (
+                  <Button
+                    key={category}
+                    onClick={() => setSelectedCategory(category as EmojiCategory)}
+                    className={`shrink-0 ${selectedCategory === category
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-200 text-gray-600 hover:text-black'
+                      }`}
+                  >
+                    {category.charAt(0).toUpperCase() + category.slice(1)}
+                  </Button>
+                ))}
+              </div>
+              <div className='grid grid-cols-10 gap-1 overflow-y-auto min-h-50 max-h-50'>
+                {getFilteredEmojis().map((emoji, i) => (
+                  <DropdownMenuItem key={i} onClick={() => setMessageText(messageText + emoji)}>
+                    {emoji}
+                  </DropdownMenuItem>
+                ))}
+              </div>
+
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             type="submit"
             disabled={!messageText.trim()}
@@ -512,6 +572,6 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
           </Button>
         </form>
       </div>
-    </div>
+    </div >
   )
 }
