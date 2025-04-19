@@ -32,7 +32,7 @@ interface ChatContextType {
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined)
-const OnlineUserContext = createContext<number[]>([])
+const OnlineUserContext = createContext<any[]>([])
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
