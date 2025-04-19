@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Edit, LogOut, Menu, MoreVertical, Send, Trash2 } from 'lucide-react'
+import { formatDistanceToNow } from 'date-fns'
 import type { Message } from '@/lib/types'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -17,7 +18,6 @@ import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { useChat } from '@/context/chat-context'
 import { useUser } from '@/context/user-context'
-import { formatDistanceToNow } from 'date-fns'
 import {
   Dialog,
   DialogClose,
