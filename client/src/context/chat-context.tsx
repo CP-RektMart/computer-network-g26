@@ -400,6 +400,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     updateChat({
       id: chatId,
       lastMessage: message.text,
+      lastSentAt: message.sentAt
     })
   }
 
