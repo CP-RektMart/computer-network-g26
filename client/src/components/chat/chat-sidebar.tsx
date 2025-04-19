@@ -10,6 +10,7 @@ import {
   X,
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
+import { formatDistanceToNow } from 'date-fns'
 import type { User } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import {
@@ -27,8 +28,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useUser } from '@/context/user-context'
-import { useChat } from '@/context/chat-context'
-import { formatDistanceToNow } from 'date-fns'
+import { useChat, useOnlineUsers } from '@/context/chat-context'
 
 interface ChatSidebarProps {
   isMobileMenuOpen: boolean
@@ -40,7 +40,15 @@ export default function ChatSidebar({
   setIsMobileMenuOpen,
 }: ChatSidebarProps) {
   const { user: currentUser, updateUsername, logout } = useUser()
-  const { chats, selectedChat, selectChat, createDirect, createGroup, joinGroup } = useChat()
+  const {
+    chats,
+    selectedChat,
+    selectChat,
+    createDirect,
+    createGroup,
+    joinGroup,
+  } = useChat()
+  const onlineUserIds = useOnlineUsers()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [newGroupName, setNewGroupName] = useState('')
@@ -108,11 +116,13 @@ export default function ChatSidebar({
 
   const filteredChats = chats.filter((chat) => {
     const resolvedName = chat.isGroup
-      ? chat.name ?? ''
-      : chat.participants?.find(p => currentUser && p.id !== currentUser.id)?.username ?? '';
+      ? (chat.name ?? '')
+      : (chat.participants?.find((p) => currentUser && p.id !== currentUser.id)
+          ?.username ?? '')
 
-
-    const matchesSearch = resolvedName.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesSearch = resolvedName
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase())
     let matchesType = true
     if (chatTypeFilter !== 'all') {
       matchesType = chatTypeFilter === 'group' ? chat.isGroup : !chat.isGroup
@@ -132,18 +142,24 @@ export default function ChatSidebar({
 
       {/* Sidebar */}
       <div
-        className={`${isMobileMenuOpen ? 'translate-x-0 pt-14' : '-translate-x-full'
-          } fixed inset-y-0 left-0 z-40 w-80 transform md:border md:border-input bg-white md:rounded-2xl transition-transform duration-300 ease-in-out md:relative md:translate-x-0`}
+        className={`${
+          isMobileMenuOpen ? 'translate-x-0 pt-14' : '-translate-x-full'
+        } fixed inset-y-0 left-0 z-40 w-80 transform md:border md:border-input bg-white md:rounded-2xl transition-transform duration-300 ease-in-out md:relative md:translate-x-0`}
       >
         <div className="flex h-full flex-col">
           {/* User profile */}
           <div className="flex items-center justify-between border-b p-4">
             <div className="flex items-center space-x-3">
-              <Avatar>
-                <AvatarFallback>
-                  {currentUser?.username ? currentUser.username.charAt(0) : '?'}
-                </AvatarFallback>
-              </Avatar>
+              <div className="relative">
+                <Avatar className='h-8 w-8'>
+                  <AvatarFallback>
+                    {currentUser?.username
+                      ? currentUser.username.charAt(0)
+                      : '?'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute inset-0 rounded-full border-2 border-green-500" />
+              </div>
               <div>
                 <h3 className="font-medium">{currentUser?.username}</h3>
                 <p className="text-xs text-gray-500">{currentUser?.email}</p>
@@ -227,9 +243,7 @@ export default function ChatSidebar({
                     <div className="max-h-60 space-y-2 overflow-y-auto rounded-md border p-2">
                       {users
                         ?.filter(
-                          (user) =>
-                            currentUser &&
-                            user.id !== currentUser.id,
+                          (user) => currentUser && user.id !== currentUser.id,
                         )
                         .map((user) => (
                           <div
@@ -242,11 +256,18 @@ export default function ChatSidebar({
                             }}
                           >
                             <div className="flex items-center space-x-3">
-                              <Avatar className="h-8 w-8">
-                                <AvatarFallback>
-                                  {user.username.charAt(0)}
-                                </AvatarFallback>
-                              </Avatar>
+                              <div className="relative">
+                                <Avatar className="h-8 w-8">
+                                  <AvatarFallback>
+                                    {user.username.charAt(0)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                {onlineUserIds.some(
+                                  (onlineUser) => onlineUser.id === user.id,
+                                ) && (
+                                  <div className="absolute inset-0 rounded-full border-2 border-green-500" />
+                                )}
+                              </div>
                               <div>
                                 <p className="text-sm font-medium">
                                   {user.username}
@@ -291,25 +312,32 @@ export default function ChatSidebar({
                       <div className="max-h-60 space-y-2 overflow-y-auto rounded-md border p-2">
                         {users
                           ?.filter(
-                            (user) =>
-                              currentUser &&
-                              user.id !== currentUser.id,
+                            (user) => currentUser && user.id !== currentUser.id,
                           )
                           .map((user) => (
                             <div
                               key={user.id}
-                              className={`flex cursor-pointer items-center justify-between rounded-md p-2 ${selectedUsers.some((u) => u.id === user.id)
-                                ? 'bg-gray-100'
-                                : ''
-                                }`}
+                              className={`flex cursor-pointer items-center justify-between rounded-md p-2 ${
+                                selectedUsers.some((u) => u.id === user.id)
+                                  ? 'bg-gray-100'
+                                  : ''
+                              }`}
                               onClick={() => toggleUserSelection(user)}
                             >
                               <div className="flex items-center space-x-3">
-                                <Avatar className="h-8 w-8">
-                                  <AvatarFallback>
-                                    {user.username.charAt(0)}
-                                  </AvatarFallback>
-                                </Avatar>
+                                <div className="relative">
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarFallback>
+                                      {user.username.charAt(0)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  {/* Green ring for online status */}
+                                  {onlineUserIds.some(
+                                    (onlineUser) => onlineUser.id === user.id,
+                                  ) && (
+                                    <div className="absolute inset-0 rounded-full border-2 border-green-500" />
+                                  )}
+                                </div>
                                 <div>
                                   <p className="text-sm font-medium">
                                     {user.username}
@@ -330,7 +358,9 @@ export default function ChatSidebar({
                       <Button
                         className="w-full"
                         onClick={handleCreateGroup}
-                        disabled={!newGroupName.trim() || selectedUsers.length === 0}
+                        disabled={
+                          !newGroupName.trim() || selectedUsers.length === 0
+                        }
                       >
                         Create Group
                       </Button>
@@ -360,9 +390,11 @@ export default function ChatSidebar({
                         onChange={(e) => setGroupIdToJoin(e.target.value)}
                       />
                     </div>
-                    <DialogClose className="w-full bg-blue-700 text-white rounded-md p-2 text-center hover:bg-blue-600 transition-colors duration-200 ease-in-out" 
+                    <DialogClose
+                      className="w-full bg-blue-700 text-white rounded-md p-2 text-center hover:bg-blue-600 transition-colors duration-200 ease-in-out"
                       onClick={handleJoinGroup}
-                      disabled={!groupIdToJoin.trim()}>
+                      disabled={!groupIdToJoin.trim()}
+                    >
                       Join Group
                     </DialogClose>
                   </div>
@@ -383,51 +415,88 @@ export default function ChatSidebar({
           <ScrollArea className="flex-1 overflow-auto">
             <div className="space-y-1 p-2">
               {filteredChats.length > 0 ? (
-                filteredChats.map((chat) => (
-                  <div
-                    key={chat.id}
-                    className={`flex cursor-pointer items-center justify-between rounded-md p-3 ${selectedChat?.id === chat.id
-                      ? 'bg-gray-100'
-                      : 'hover:bg-gray-50'
-                      }`}
-                    onClick={() => {
-                      selectChat(chat)
-                      setIsMobileMenuOpen(false)
-                    }}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <Avatar>
-                        <AvatarFallback>
-                          {chat.name ? chat.name.charAt(0) : '?'}
-                        </AvatarFallback>
-                      </Avatar>
+                filteredChats.map((chat) => {
+                  const otherParticipant = !chat.isGroup
+                    ? chat.participants?.find(
+                        (p) => currentUser && p.id !== currentUser.id,
+                      )
+                    : null
 
-                      <div>
-                        <div className="flex items-center">
-                          <h3 className="font-medium">{chat.name}</h3>
-                          {chat.isGroup && (
-                            <Badge className="ml-2 bg-blue-100 text-blue-700 text-xs">
-                              Group
-                            </Badge>
-                          )}
+                  const isDirectOnline = otherParticipant
+                    ? onlineUserIds.some((u) => u.id === otherParticipant.id)
+                    : false
+
+                  const isGroupOnline = chat.isGroup
+                    ? chat.participants?.some(
+                        (p) =>
+                          p.id !== currentUser?.id &&
+                          onlineUserIds.some(
+                            (onlineUser) => onlineUser.id === p.id,
+                          ),
+                      )
+                    : false
+
+                  return (
+                    <div
+                      key={chat.id}
+                      className={`flex cursor-pointer items-center justify-between rounded-md p-3 ${
+                        selectedChat?.id === chat.id
+                          ? 'bg-gray-100'
+                          : 'hover:bg-gray-50'
+                      }`}
+                      onClick={() => {
+                        selectChat(chat)
+                        setIsMobileMenuOpen(false)
+                      }}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="relative">
+                          <div className="relative">
+                            <Avatar
+                              className={
+                                isDirectOnline || isGroupOnline
+                                  ? 'border-2 border-transparent'
+                                  : ''
+                              }
+                            >
+                              <AvatarFallback>
+                                {chat.name ? chat.name.charAt(0) : '?'}
+                              </AvatarFallback>
+                            </Avatar>
+                            {(isDirectOnline || isGroupOnline) && (
+                              <div className="absolute inset-0 rounded-full border-2 border-green-500" />
+                            )}
+                          </div>
                         </div>
-                        <p className="text-sm text-gray-500 line-clamp-1">
-                          {chat.lastMessage}
-                        </p>
+                        <div>
+                          <div className="flex items-center">
+                            <h3 className="font-medium">{chat.name}</h3>
+                            {chat.isGroup && (
+                              <Badge className="ml-2 bg-blue-100 text-blue-700 text-xs">
+                                Group
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-500 line-clamp-1">
+                            {chat.lastMessage}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col self-start items-end space-y-1">
+                        <span className="text-xs text-gray-500">
+                          {chat.lastSentAt
+                            ? formatDistanceToNow(chat.lastSentAt)
+                            : ''}
+                        </span>
+                        {chat.unread > 0 && (
+                          <Badge className="h-5 w-5 rounded-full p-0 flex items-center justify-center bg-red-500">
+                            {chat.unread}
+                          </Badge>
+                        )}
                       </div>
                     </div>
-                    <div className="flex flex-col self-start items-end space-y-1">
-                      <span className="text-xs text-gray-500">
-                        {chat.lastSentAt ? formatDistanceToNow(chat.lastSentAt) : ''}
-                      </span>
-                      {chat.unread > 0 && (
-                        <Badge className="h-5 w-5 rounded-full p-0 flex items-center justify-center bg-red-500">
-                          {chat.unread}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                ))
+                  )
+                })
               ) : (
                 <div className="p-4 text-center text-gray-500">
                   No conversations found
