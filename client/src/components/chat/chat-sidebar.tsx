@@ -10,6 +10,7 @@ import {
   X,
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
+import { formatDistanceToNow } from 'date-fns'
 import type { User } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import {
@@ -27,8 +28,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useUser } from '@/context/user-context'
-import { useChat } from '@/context/chat-context'
-import { formatDistanceToNow } from 'date-fns'
+import { useChat, useOnlineUsers } from '@/context/chat-context'
 
 interface ChatSidebarProps {
   isMobileMenuOpen: boolean
@@ -41,6 +41,7 @@ export default function ChatSidebar({
 }: ChatSidebarProps) {
   const { user: currentUser, updateUsername, logout } = useUser()
   const { chats, selectedChat, selectChat, createDirect, createGroup, joinGroup } = useChat()
+  const onlineUserIds = useOnlineUsers()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [newGroupName, setNewGroupName] = useState('')
@@ -49,6 +50,8 @@ export default function ChatSidebar({
   const [editedName, setEditedName] = useState(currentUser?.username || '')
   const [chatTypeFilter, setChatTypeFilter] = useState('all')
   const [openContactsDialog, setOpenContactsDialog] = useState(false)
+
+  console.log('Online users:', onlineUserIds)
 
   const fetchUsers = async (): Promise<User[]> => {
     const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users`, {
