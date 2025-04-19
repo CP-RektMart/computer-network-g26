@@ -375,5 +375,3 @@ router.put(
 );
 
 export default router;
-
-//TODO: PATCH route for updating user info and broadcast to all participants (socket-room-participant-update RoomActivityDto)

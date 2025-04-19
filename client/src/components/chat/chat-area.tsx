@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { DotPattern } from '@/components/ui/dot-pattern'
+import { formatDistanceToNow } from 'date-fns'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,7 +18,6 @@ import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { useChat } from '@/context/chat-context'
 import { useUser } from '@/context/user-context'
-import { formatDistanceToNow } from 'date-fns'
 import {
   Dialog,
   DialogClose,
