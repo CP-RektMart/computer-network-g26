@@ -205,19 +205,9 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
 
   return (
     <div className="flex flex-1 flex-col bg-white md:border md:border-input md:rounded-2xl">
-      {/* Mobile menu toggle */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="md:hidden"
-        onClick={() => setIsMobileMenuOpen(true)}
-      >
-        <Menu className="h-5 w-5" />
-      </Button>
-
       <div className="flex gap-5 p-4">
         {/* Avatar */}
-        <div className="relative">
+        <div className="relative pl-14 sm:pl-0">
           <Avatar className="h-8 w-8">
             <AvatarFallback>
               {selectedChat.name ? selectedChat.name.charAt(0) : '?'}

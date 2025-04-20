@@ -241,6 +241,45 @@ export default function ChatSidebar({
                   </DialogHeader>
                   <div className="space-y-4 py-4">
                     <div className="max-h-96 space-y-2 overflow-y-auto rounded-md border p-2">
+                      {/* Add current user as the first item */}
+                      {currentUser && (
+                        <div
+                          key={currentUser.id}
+                          className="flex items-center justify-between rounded-md p-2 hover:bg-gray-100"
+                          onClick={() => {
+                            createDirect(currentUser.id)
+                            setIsMobileMenuOpen(false)
+                            setOpenContactsDialog(false)
+                          }}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <div className="relative">
+                              <Avatar className="h-8 w-8">
+                                <AvatarFallback>
+                                  {currentUser.username.charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              {onlineUserIds.some(
+                                (onlineUser) =>
+                                  onlineUser.id === currentUser.id,
+                              ) && (
+                                <div className="absolute inset-0 rounded-full border-2 border-green-500" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">
+                                {currentUser.username}{' '}
+                                <span className="text-xs text-gray-400">
+                                  (You)
+                                </span>
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {currentUser.email}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       {users
                         ?.filter(
                           (user) => currentUser && user.id !== currentUser.id,
