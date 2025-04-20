@@ -438,6 +438,7 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                               <Button
                                 variant="outline"
                                 size="sm"
+                                className="text-primary"
                                 onClick={cancelEditMessage}
                               >
                                 Cancel

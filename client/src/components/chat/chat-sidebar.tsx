@@ -151,7 +151,7 @@ export default function ChatSidebar({
           <div className="flex items-center justify-between border-b p-4">
             <div className="flex items-center space-x-3">
               <div className="relative">
-                <Avatar className='h-8 w-8'>
+                <Avatar className="h-8 w-8">
                   <AvatarFallback>
                     {currentUser?.username
                       ? currentUser.username.charAt(0)
@@ -240,11 +240,23 @@ export default function ChatSidebar({
                     <DialogTitle>Contacts</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
-                    <div className="max-h-60 space-y-2 overflow-y-auto rounded-md border p-2">
+                    <div className="max-h-96 space-y-2 overflow-y-auto rounded-md border p-2">
                       {users
                         ?.filter(
                           (user) => currentUser && user.id !== currentUser.id,
                         )
+                        .sort((a, b) => {
+                          const aOnline = onlineUserIds.some(
+                            (u) => u.id === a.id,
+                          )
+                          const bOnline = onlineUserIds.some(
+                            (u) => u.id === b.id,
+                          )
+                          if (aOnline !== bOnline) {
+                            return aOnline ? -1 : 1 // online first
+                          }
+                          return a.username.localeCompare(b.username)
+                        })
                         .map((user) => (
                           <div
                             key={user.id}
