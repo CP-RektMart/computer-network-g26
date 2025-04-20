@@ -365,6 +365,18 @@ export default function ChatSidebar({
                           ?.filter(
                             (user) => currentUser && user.id !== currentUser.id,
                           )
+                          .sort((a, b) => {
+                            const aOnline = onlineUserIds.some(
+                              (u) => u.id === a.id,
+                            )
+                            const bOnline = onlineUserIds.some(
+                              (u) => u.id === b.id,
+                            )
+                            if (aOnline !== bOnline) {
+                              return aOnline ? -1 : 1 // online first
+                            }
+                            return a.username.localeCompare(b.username)
+                          })
                           .map((user) => (
                             <div
                               key={user.id}
