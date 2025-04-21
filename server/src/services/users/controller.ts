@@ -212,6 +212,7 @@ export const getChat = async (userId: number): Promise<UserChatDetailDto[]> => {
           lastMessage: lastMessage[0],
           lastSentAt: chat.lastSentAt ?? undefined,
           participants: mapped,
+          participantCount: mapped.length,
           unread: unreadMessageCount,
           messageCount,
         };
@@ -313,4 +314,3 @@ export const getAllOnlineUsers = async (): Promise<UserDto[]> => {
     isOnline: user.isOnline,
   }));
 };
-

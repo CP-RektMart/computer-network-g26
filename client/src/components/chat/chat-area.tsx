@@ -7,6 +7,7 @@ import {
   Send,
   SmilePlus,
   Trash2,
+  Lock
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { emojiCategories, flatEmojiList } from './chat-emoji'
@@ -35,6 +36,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { toast } from 'react-toastify'
 
 interface ChatAreaProps {
   setIsMobileMenuOpen: (open: boolean) => void
@@ -55,12 +57,28 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
     createDirect,
     editMessage,
     unsendMessage,
+    updateGroupPassword
   } = useChat()
   const [messageText, setMessageText] = useState('')
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const isNearBottomRef = useRef(true)
+  const [newPassword, setNewPassword] = useState('');
+
+
+  const handleSaveNewPassword = () => {
+    if (!selectedChat?.id) {
+      console.error("No group selected");
+      return;
+    }
+
+    const passwordToSend = newPassword?.trim() === "" ? undefined : newPassword.trim();
+    updateGroupPassword(selectedChat.id, passwordToSend);
+    toast.success(
+      passwordToSend ? "Password updated successfully!" : "Password removed successfully!"
+    );
+  };
 
   const fetchMessageLimit = 20
 
@@ -217,8 +235,8 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                 p.id !== user?.id &&
                 onlineUserIds.some((onlineUser) => onlineUser.id === p.id),
             ) && (
-              <div className="absolute inset-0 rounded-full border-2 border-green-500" />
-            )}
+                <div className="absolute inset-0 rounded-full border-2 border-green-500" />
+              )}
           </Avatar>
         </div>
 
@@ -286,8 +304,8 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                                     (onlineUser) =>
                                       onlineUser.id === participant.id,
                                   ) && (
-                                    <div className="absolute inset-0 rounded-full border-2 border-green-500" />
-                                  )}
+                                      <div className="absolute inset-0 rounded-full border-2 border-green-500" />
+                                    )}
                                 </div>
                                 {participant.username.length > 10
                                   ? `${participant.username.slice(0, 10)}...`
@@ -309,9 +327,9 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                                   className={cn(
                                     'ml-2 text-xs',
                                     participant.role === 'admin' &&
-                                      'bg-red-100 text-red-700',
+                                    'bg-red-100 text-red-700',
                                     participant.role === 'member' &&
-                                      'bg-blue-100 text-blue-700',
+                                    'bg-blue-100 text-blue-700',
                                   )}
                                 >
                                   {participant.role}
@@ -328,6 +346,56 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
             {selectedChat.isGroup && (
               <p className="text-xs text-gray-500">{selectedChat.id}</p>
             )}
+            <div>
+              {currentParticipant?.role === 'admin' && (
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button
+                      type="button"
+                      className="rounded-full bg-gray-200 text-gray-500 hover:bg-gray-300 hover:text-black active:bg-gray-400 active:text-gray-700"
+                      size="icon"
+                    >
+                      <Lock className="text-gray-900 cursor-pointer" />
+                    </Button>
+                  </DialogTrigger>
+
+                  {/* Dialog Content */}
+                  <DialogContent className="p-6">
+                    <DialogHeader>
+                      <DialogTitle className="text-lg font-semibold mb-4">
+                        Set New Password
+                      </DialogTitle>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-4">
+                      <p>Enter your new password below:</p>
+                      <Input
+                        type="password"
+                        placeholder="New Password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full px-4 py-2 border rounded-md"
+                      />
+                    </div>
+
+                    {/* Dialog Actions (Cancel/Save) */}
+                    <div className="flex justify-end gap-4">
+                      <DialogClose
+                        className="bg-gray-300 text-white px-4 py-2 rounded cursor-pointer hover:bg-gray-400"
+                      >
+                        Cancel
+                      </DialogClose>
+                      <DialogClose
+                        className="bg-blue-500 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-600"
+                        onClick={handleSaveNewPassword}
+                      >
+                        Save
+                      </DialogClose>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
           </div>
           <div>
             {selectedChat.isGroup && (
@@ -390,23 +458,21 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                 >
                   {message.senderType === 'user' ? (
                     <div
-                      className={`max-w-[70%] ${
-                        isCurrentUser
-                          ? 'rounded-lg bg-primary text-white'
-                          : 'rounded-lg bg-gray-100 text-gray-900'
-                      } overflow-hidden`}
+                      className={`max-w-[70%] ${isCurrentUser
+                        ? 'rounded-lg bg-primary text-white'
+                        : 'rounded-lg bg-gray-100 text-gray-900'
+                        } overflow-hidden`}
                     >
                       {!isCurrentUser && selectedChat.isGroup && (
                         <div className="border-b border-gray-200 px-4 py-2 text-xs font-medium">
                           <div className="flex items-center gap-2">
                             <div
-                              className={`h-2 w-2 rounded-full ${
-                                onlineUserIds.some(
-                                  (onlineUser) => onlineUser.id === sender?.id,
-                                )
-                                  ? 'bg-green-500'
-                                  : 'bg-gray-300'
-                              }`}
+                              className={`h-2 w-2 rounded-full ${onlineUserIds.some(
+                                (onlineUser) => onlineUser.id === sender?.id,
+                              )
+                                ? 'bg-green-500'
+                                : 'bg-gray-300'
+                                }`}
                             />
                             {sender?.username || 'Unknown user'}
                           </div>
@@ -558,11 +624,10 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
               <div className="max-w-[420px] overflow-x-auto whitespace-nowrap pb-2 flex space-x-2">
                 <Button
                   onClick={() => setSelectedCategory('all')}
-                  className={`shrink-0 ${
-                    selectedCategory === 'all'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-200 text-gray-600 hover:text-black'
-                  }`}
+                  className={`shrink-0 ${selectedCategory === 'all'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-200 text-gray-600 hover:text-black'
+                    }`}
                 >
                   All
                 </Button>
@@ -573,11 +638,10 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                     onClick={() =>
                       setSelectedCategory(category as EmojiCategory)
                     }
-                    className={`shrink-0 ${
-                      selectedCategory === category
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-200 text-gray-600 hover:text-black'
-                    }`}
+                    className={`shrink-0 ${selectedCategory === category
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-200 text-gray-600 hover:text-black'
+                      }`}
                   >
                     {category.charAt(0).toUpperCase() + category.slice(1)}
                   </Button>

@@ -28,7 +28,7 @@ const signupUser = async ({
 
   if (!response.ok) {
     const error = await response.json()
-    throw new Error(error.message || 'Registration failed')
+    throw new Error(error.message || 'Username or email is used')
   }
 
   return response.json()
@@ -65,6 +65,10 @@ export function SignupForm({
     e.preventDefault()
     setError(null)
 
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
     // Validate passwords match
     if (password !== confirmPassword) {
       setError('Passwords do not match')

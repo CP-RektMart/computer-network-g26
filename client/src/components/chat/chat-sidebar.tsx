@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Edit2,
   LogOut,
@@ -8,10 +8,12 @@ import {
   UserPlus,
   Users,
   X,
+  Lock,
+  Unlock
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { formatDistanceToNow } from 'date-fns'
-import type { User } from '@/lib/types'
+import type { GroupInfo, User } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -21,12 +23,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useUser } from '@/context/user-context'
 import { useChat, useOnlineUsers } from '@/context/chat-context'
 
@@ -51,12 +54,22 @@ export default function ChatSidebar({
   const onlineUserIds = useOnlineUsers()
 
   const [searchQuery, setSearchQuery] = useState('')
+
+  const [contactSearchQuery, setContactSearchQuery] = useState('');
+  const [groupSearchQuery, setGroupSearchQuery] = useState('');
+
   const [newGroupName, setNewGroupName] = useState('')
+  const [newGroupPassword, setNewGroupPassword] = useState('')
   const [groupIdToJoin, setGroupIdToJoin] = useState('')
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false)
   const [editedName, setEditedName] = useState(currentUser?.username || '')
   const [chatTypeFilter, setChatTypeFilter] = useState('all')
   const [openContactsDialog, setOpenContactsDialog] = useState(false)
+  const [usePassword, setUsePassword] = useState(false);
+  const [inputPassword, setInputPassword] = useState<string>('');
+  const [groups, setGroups] = useState<GroupInfo[]>([])
+  const [selectedUsers, setSelectedUsers] = useState<User[]>([])
+  const [openJoinDialog, setOpenJoinDialog] = useState(false)
 
   const fetchUsers = async (): Promise<User[]> => {
     const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users`, {
@@ -71,29 +84,62 @@ export default function ChatSidebar({
     return data
   }
 
+  const fetchGroups = async (): Promise<GroupInfo[]> => {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groups`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+      },
+    });
+
+    const data = await response.json();
+    console.log(data)
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch group');
+    }
+
+    return data;
+  };
+
+  const { data: fetchedGroups } = useQuery({
+    queryKey: ['groups'],
+    queryFn: fetchGroups,
+  })
+
   const { data: users } = useQuery({
     queryKey: ['users'],
     queryFn: fetchUsers,
   })
 
-  const [selectedUsers, setSelectedUsers] = useState<User[]>([])
+  useEffect(() => {
+    if (fetchedGroups) {
+      setGroups(fetchedGroups)
+    }
+  }, [fetchedGroups])
 
   const handleCreateGroup = () => {
     if (newGroupName.trim() && selectedUsers.length > 0) {
-      createGroup(newGroupName, selectedUsers)
+      const groupPassword = usePassword ? newGroupPassword : undefined;
+
+      createGroup(newGroupName, groupPassword, selectedUsers);
       setNewGroupName('')
       setSelectedUsers([])
       setIsMobileMenuOpen(false)
     }
   }
-
-  const handleJoinGroup = () => {
+  const handleJoinGroup = async () => {
     if (groupIdToJoin.trim()) {
-      joinGroup(groupIdToJoin)
-      setGroupIdToJoin('')
-      setIsMobileMenuOpen(false)
+      // If password is empty, set it to undefined (or keep it as empty string based on backend handling)
+      const passwordToSend = inputPassword.trim() === '' ? undefined : inputPassword;
+
+      // Call the function to join the group (make sure it handles errors appropriately)
+      await joinGroup(groupIdToJoin, passwordToSend);
+
+      setGroupIdToJoin('');
+      setInputPassword('');
+      setIsMobileMenuOpen(false);
     }
-  }
+  };
 
   const toggleUserSelection = (user: User) => {
     if (selectedUsers.some((u) => u.id === user.id)) {
@@ -118,7 +164,7 @@ export default function ChatSidebar({
     const resolvedName = chat.isGroup
       ? (chat.name ?? '')
       : (chat.participants?.find((p) => currentUser && p.id !== currentUser.id)
-          ?.username ?? '')
+        ?.username ?? '')
 
     const matchesSearch = resolvedName
       .toLowerCase()
@@ -142,9 +188,8 @@ export default function ChatSidebar({
 
       {/* Sidebar */}
       <div
-        className={`${
-          isMobileMenuOpen ? 'translate-x-0 pt-14' : '-translate-x-full'
-        } fixed inset-y-0 left-0 z-40 w-80 transform md:border md:border-input bg-white md:rounded-2xl transition-transform duration-300 ease-in-out md:relative md:translate-x-0`}
+        className={`${isMobileMenuOpen ? 'translate-x-0 pt-14' : '-translate-x-full'
+          } fixed inset-y-0 left-0 z-40 w-80 transform md:border md:border-input bg-white md:rounded-2xl transition-transform duration-300 ease-in-out md:relative md:translate-x-0`}
       >
         <div className="flex h-full flex-col">
           {/* User profile */}
@@ -239,99 +284,154 @@ export default function ChatSidebar({
                   <DialogHeader>
                     <DialogTitle>Contacts</DialogTitle>
                   </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="max-h-96 space-y-2 overflow-y-auto rounded-md border p-2">
-                      {/* Add current user as the first item */}
-                      {currentUser && (
-                        <div
-                          key={currentUser.id}
-                          className="flex items-center justify-between rounded-md p-2 hover:bg-gray-100"
-                          onClick={() => {
-                            createDirect(currentUser.id)
-                            setIsMobileMenuOpen(false)
-                            setOpenContactsDialog(false)
-                          }}
-                        >
-                          <div className="flex items-center space-x-3">
-                            <div className="relative">
-                              <Avatar className="h-8 w-8">
-                                <AvatarFallback>
-                                  {currentUser.username.charAt(0)}
-                                </AvatarFallback>
-                              </Avatar>
-                              {onlineUserIds.some(
-                                (onlineUser) =>
-                                  onlineUser.id === currentUser.id,
-                              ) && (
-                                <div className="absolute inset-0 rounded-full border-2 border-green-500" />
-                              )}
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium">
-                                {currentUser.username}{' '}
-                                <span className="text-xs text-gray-400">
-                                  (You)
-                                </span>
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {currentUser.email}
-                              </p>
-                            </div>
+                  <Tabs defaultValue="contacts" className="space-y-4 flex justify-center">
+                    {/* Tab Buttons */}
+                    <TabsList className="w-full flex justify-start space-x-2">
+                      <TabsTrigger value="contacts">Contacts</TabsTrigger>
+                      <TabsTrigger value="groups">Groups</TabsTrigger>
+                    </TabsList>
+
+                    <div className="flex justify-center">
+                      <TabsContent value="contacts">
+                        <div className="h-[400px] w-[480px] overflow-y-auto flex flex-col gap-2 rounded-md border p-2">
+                          {/* Search Input for Contacts */}
+                          <input
+                            type="text"
+                            placeholder="Search Contacts..."
+                            value={contactSearchQuery}
+                            onChange={(e) => setContactSearchQuery(e.target.value)}
+                            className="p-2 border rounded-md mb-4"
+                          />
+
+                          <div className="flex-col flex-row space-x-2">
+                            {/* Render current user */}
+                            {currentUser && (
+                              <div
+                                key={currentUser.id}
+                                className="w-[450px] flex-shrink-0 rounded-md p-2 hover:bg-gray-100 cursor-pointer"
+                                onClick={() => {
+                                  createDirect(currentUser.id);
+                                  setIsMobileMenuOpen(false);
+                                  setOpenContactsDialog(false);
+                                }}
+                              >
+                                <div className="flex items-center space-x-3">
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarFallback>{currentUser.username.charAt(0)}</AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <p className="text-sm font-medium">{currentUser.username} <span className="text-xs text-gray-400">(You)</span></p>
+                                    <p className="text-xs text-gray-500">{currentUser.email}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Render filtered contacts */}
+                            {(users ?? [])
+                              .filter((user) =>
+                                user.username.toLowerCase().includes(contactSearchQuery.toLowerCase())
+                              )
+                              .filter((user) => user.id !== currentUser?.id)
+                              .sort((a, b) => {
+                                const aOnline = onlineUserIds.some((u) => u.id === a.id);
+                                const bOnline = onlineUserIds.some((u) => u.id === b.id);
+                                return aOnline === bOnline ? a.username.localeCompare(b.username) : aOnline ? -1 : 1;
+                              })
+                              .map((user) => (
+                                <div
+                                  key={user.id}
+                                  className="w-[450px] flex-shrink-0 rounded-md p-2 hover:bg-gray-100 cursor-pointer"
+                                  onClick={() => {
+                                    createDirect(user.id);
+                                    setIsMobileMenuOpen(false);
+                                    setOpenContactsDialog(false);
+                                  }}
+                                >
+                                  <div className="flex items-center space-x-3">
+                                    <Avatar className="h-8 w-8">
+                                      <AvatarFallback>{user.username.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                      <p className="text-sm font-medium">{user.username}</p>
+                                      <p className="text-xs text-gray-500">{user.email}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
                           </div>
                         </div>
-                      )}
-                      {users
-                        ?.filter(
-                          (user) => currentUser && user.id !== currentUser.id,
-                        )
-                        .sort((a, b) => {
-                          const aOnline = onlineUserIds.some(
-                            (u) => u.id === a.id,
-                          )
-                          const bOnline = onlineUserIds.some(
-                            (u) => u.id === b.id,
-                          )
-                          if (aOnline !== bOnline) {
-                            return aOnline ? -1 : 1 // online first
-                          }
-                          return a.username.localeCompare(b.username)
-                        })
-                        .map((user) => (
-                          <div
-                            key={user.id}
-                            className="flex items-center justify-between rounded-md p-2 hover:bg-gray-100"
-                            onClick={() => {
-                              createDirect(user.id)
-                              setIsMobileMenuOpen(false)
-                              setOpenContactsDialog(false)
-                            }}
-                          >
-                            <div className="flex items-center space-x-3">
-                              <div className="relative">
-                                <Avatar className="h-8 w-8">
-                                  <AvatarFallback>
-                                    {user.username.charAt(0)}
-                                  </AvatarFallback>
-                                </Avatar>
-                                {onlineUserIds.some(
-                                  (onlineUser) => onlineUser.id === user.id,
-                                ) && (
-                                  <div className="absolute inset-0 rounded-full border-2 border-green-500" />
-                                )}
+                      </TabsContent>
+
+                      {/* Groups Tab */}
+                      <TabsContent value="groups">
+                        <div className="h-[400px] w-[480px] overflow-y-auto flex flex-col gap-2 rounded-md border p-2">
+                          {/* Search Input for Groups */}
+                          <input
+                            type="text"
+                            placeholder="Search Groups..."
+                            className="p-2 border rounded-md mb-4"
+                            value={groupSearchQuery}
+                            onChange={(e) => setGroupSearchQuery(e.target.value)} 
+                          />
+
+                          {/* Filtered Groups based on Search Query */}
+                          {groups
+                            .filter(group =>
+                              group.name.toLowerCase().includes(groupSearchQuery.toLowerCase()) 
+                            )
+                            .map((group) => (
+                              <div
+                                key={group.id}
+                                className="w-[450px] flex-shrink-0 rounded-md p-2 hover:bg-gray-100 cursor-pointer"
+                                onClick={() => {
+                                  const isAlreadyJoined = chats.find((c) => c.id === group.id);
+
+                                  if (isAlreadyJoined) {
+                                    selectChat(isAlreadyJoined);
+                                    return;
+                                  }
+
+                                  setGroupIdToJoin(group.id);
+                                  setInputPassword('');
+
+                                  if (!group.havePassword) {
+                                    joinGroup(group.id, '');
+                                  } else {
+                                    setOpenJoinDialog(true);
+                                  }
+                                }}
+                              >
+                                <div className="flex items-center justify-between space-x-3">
+                                  <div className="flex items-center space-x-3">
+                                    <Avatar className="h-8 w-8">
+                                      <AvatarFallback>{group.name.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                      <p className="text-sm font-medium truncate">{group.name}</p>
+                                      <p className="text-xs text-gray-500 truncate">
+                                        {group.participantCount} members
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <p className="flex items-center">
+                                      {chats.find((c) => c.id === group.id) ? (
+                                        <span className="text-green-500 text-sm">Joined</span>
+                                      ) : group.havePassword ? (
+                                        <Lock className="h-4 w-4 text-red-500 ml-2" />
+                                      ) : (
+                                        <Unlock className="h-4 w-4 text-green-500 ml-2" />
+                                      )}
+                                    </p>
+                                  </div>
+                                </div>
                               </div>
-                              <div>
-                                <p className="text-sm font-medium">
-                                  {user.username}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {user.email}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                            ))}
+                        </div>
+                      </TabsContent>
                     </div>
-                  </div>
+                  </Tabs>
                 </DialogContent>
               </Dialog>
             </div>
@@ -357,6 +457,26 @@ export default function ChatSidebar({
                         value={newGroupName}
                         onChange={(e) => setNewGroupName(e.target.value)}
                       />
+                      <Button
+                        type="button"
+                        variant={usePassword ? 'default' : 'outline'}
+                        onClick={() => setUsePassword(!usePassword)}
+                      >
+                        {usePassword ? 'Remove Password' : 'Add Password'}
+                      </Button>
+
+                      {usePassword && (
+                        <>
+                          <Label htmlFor="group-password">Password</Label>
+                          <Input
+                            id="group-password"
+                            type="password"
+                            placeholder="Enter password"
+                            value={newGroupPassword}
+                            onChange={(e) => setNewGroupPassword(e.target.value)}
+                          />
+                        </>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label>Select Participants</Label>
@@ -380,11 +500,10 @@ export default function ChatSidebar({
                           .map((user) => (
                             <div
                               key={user.id}
-                              className={`flex cursor-pointer items-center justify-between rounded-md p-2 ${
-                                selectedUsers.some((u) => u.id === user.id)
-                                  ? 'bg-gray-100'
-                                  : ''
-                              }`}
+                              className={`flex cursor-pointer items-center justify-between rounded-md p-2 ${selectedUsers.some((u) => u.id === user.id)
+                                ? 'bg-gray-100'
+                                : ''
+                                }`}
                               onClick={() => toggleUserSelection(user)}
                             >
                               <div className="flex items-center space-x-3">
@@ -398,8 +517,8 @@ export default function ChatSidebar({
                                   {onlineUserIds.some(
                                     (onlineUser) => onlineUser.id === user.id,
                                   ) && (
-                                    <div className="absolute inset-0 rounded-full border-2 border-green-500" />
-                                  )}
+                                      <div className="absolute inset-0 rounded-full border-2 border-green-500" />
+                                    )}
                                 </div>
                                 <div>
                                   <p className="text-sm font-medium">
@@ -432,7 +551,7 @@ export default function ChatSidebar({
                 </DialogContent>
               </Dialog>
 
-              <Dialog>
+              <Dialog open={openJoinDialog} onOpenChange={setOpenJoinDialog}>
                 <DialogTrigger asChild>
                   <Button variant="outline" className="flex-1">
                     <UserPlus className="mr-2 h-4 w-4" />
@@ -451,6 +570,13 @@ export default function ChatSidebar({
                         placeholder="Enter group ID"
                         value={groupIdToJoin}
                         onChange={(e) => setGroupIdToJoin(e.target.value)}
+                      />
+                      <Label htmlFor="group-password">Group Password</Label>
+                      <Input
+                        id="group-password"
+                        placeholder="Enter group password"
+                        value={inputPassword}
+                        onChange={(e) => setInputPassword(e.target.value)}
                       />
                     </div>
                     <DialogClose
@@ -481,8 +607,8 @@ export default function ChatSidebar({
                 filteredChats.map((chat) => {
                   const otherParticipant = !chat.isGroup
                     ? chat.participants?.find(
-                        (p) => currentUser && p.id !== currentUser.id,
-                      )
+                      (p) => currentUser && p.id !== currentUser.id,
+                    )
                     : null
 
                   const isDirectOnline = otherParticipant
@@ -491,22 +617,21 @@ export default function ChatSidebar({
 
                   const isGroupOnline = chat.isGroup
                     ? chat.participants?.some(
-                        (p) =>
-                          p.id !== currentUser?.id &&
-                          onlineUserIds.some(
-                            (onlineUser) => onlineUser.id === p.id,
-                          ),
-                      )
+                      (p) =>
+                        p.id !== currentUser?.id &&
+                        onlineUserIds.some(
+                          (onlineUser) => onlineUser.id === p.id,
+                        ),
+                    )
                     : false
 
                   return (
                     <div
                       key={chat.id}
-                      className={`flex cursor-pointer items-center justify-between rounded-md p-3 ${
-                        selectedChat?.id === chat.id
-                          ? 'bg-gray-100'
-                          : 'hover:bg-gray-50'
-                      }`}
+                      className={`flex cursor-pointer items-center justify-between rounded-md p-3 ${selectedChat?.id === chat.id
+                        ? 'bg-gray-100'
+                        : 'hover:bg-gray-50'
+                        }`}
                       onClick={() => {
                         selectChat(chat)
                         setIsMobileMenuOpen(false)
