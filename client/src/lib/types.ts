@@ -13,6 +13,13 @@ export interface Participant extends User {
   isLeaved: boolean
 }
 
+export interface GroupInfo {
+  id: string
+  name: string
+  participantCount: number
+  havePassword: boolean
+}
+
 export interface Chat {
   id: string
   name: string

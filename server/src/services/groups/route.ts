@@ -1,9 +1,8 @@
-import { createGroup, joinGroup, leaveGroup } from './controller';
+import { checkPassword, createGroup, getAllGroup, getGroup, joinGroup, leaveGroup, updateGroupPassword } from './controller';
 import { AuthenticateJWT } from '@/jwt';
 import { body, validationResult } from 'express-validator';
 import { NextFunction, Request, Response, Router } from 'express';
-import { getRoomType, saveMessage } from '@/services/rooms/controller';
-import { getChatsId } from '@/services/users/controller';
+import { getParticipant, getRoomType, saveMessage } from '@/services/rooms/controller';
 import { channelName, getUserSockets, io } from '@/socket';
 import { socketResponse } from '@/type';
 import { GroupJoinActivityDto, GroupLeaveActivityDto, GroupUpdateActivityDto } from './type';
@@ -40,7 +39,7 @@ router.post('/', AuthenticateJWT, validateCreateGroup, async (req: Request, res:
     }
 
     const userId = parseInt(req.userId, 10);
-    let { groupName, description, participantIds } = req.body;
+    let { groupName, description, participantIds, password } = req.body;
     if (!participantIds) {
       participantIds = [];
     }
@@ -48,7 +47,7 @@ router.post('/', AuthenticateJWT, validateCreateGroup, async (req: Request, res:
       participantIds.push(userId);
     }
 
-    const newGroupChat = await createGroup(groupName, description, userId, participantIds);
+    const newGroupChat = await createGroup(groupName, description, userId, participantIds, password);
 
     await Promise.all(
       participantIds.map(async (participantId: number) => {
@@ -76,6 +75,35 @@ router.post('/', AuthenticateJWT, validateCreateGroup, async (req: Request, res:
   }
 });
 
+router.patch('/:groupId/password', AuthenticateJWT, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.userId) {
+      res.status(401).json({ message: 'Unauthorized: Missing user ID' });
+      return;
+    }
+    const groupId = req.params.groupId;
+    const userId = parseInt(req.userId);
+
+    const participant = await getParticipant(userId, groupId);
+    if (!participant) {
+      res.status(401).json({ message: 'Unauthorized: Not Participant for this group' });
+      return;
+    }
+    if (participant.role !== 'admin') {
+      res.status(401).json({ message: 'Unauthorized: Not Admin for this group' });
+      return;
+    }
+    let password = req.body.password;
+    if (!password) {
+      password = null;
+    }
+    await updateGroupPassword(groupId, password);
+  } catch (error) {
+    console.error('Error while joining room:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // TODO: Add Swagger documentation for this endpoint
 router.post('/:groupId/join', AuthenticateJWT, async (req: Request, res: Response): Promise<void> => {
   try {
@@ -85,6 +113,15 @@ router.post('/:groupId/join', AuthenticateJWT, async (req: Request, res: Respons
     }
     const groupId = req.params.groupId;
     const userId = parseInt(req.userId);
+    let password = req.body.password;
+    if (!password) {
+      password = '';
+    }
+    const isMatch = await checkPassword(groupId, password);
+    if (!isMatch) {
+      res.status(400).json({ message: 'Invalid password' });
+      return;
+    }
 
     const type = await getRoomType(groupId);
     if (type === 'direct') {
@@ -185,6 +222,16 @@ router.post('/:groupId/leave', AuthenticateJWT, async (req: Request, res: Respon
     }
   } catch (error) {
     console.error('Error while leaving room:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.get('/', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const groups = await getAllGroup();
+    res.status(200).json(groups);
+  } catch (error) {
+    console.error('Failed to fetch groups:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });

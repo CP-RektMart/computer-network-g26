@@ -35,6 +35,9 @@ model Group {
   id          String   @id @default(uuid())
   name        String
   description String   @default("")
+  password                 String     @default("")   
+  salt                     String     @default("")
+  havePassword      Boolean           @default(false)
 
   room        Room     @relation(fields: [id], references: [id], onDelete: Cascade)
 

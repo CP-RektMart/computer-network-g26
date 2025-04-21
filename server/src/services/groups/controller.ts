@@ -1,5 +1,6 @@
 import { prisma } from '@/database';
 import * as crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import { UserChatDetailDto } from '@/services/users/type';
 import { ChatInfoDto, ParticipantDto } from '@/services/rooms/type';
 import { getMessageCount, getMessageRecently, getRoomType, getUnreadMessageCount, isParticipantOfRoom } from '@/services/rooms/controller';
@@ -9,7 +10,8 @@ export const createGroup = async (
   groupName: string,
   description: string,
   ownerUserId: number,
-  participantIds: number[]
+  participantIds: number[],
+  password: string | undefined
 ): Promise<UserChatDetailDto> => {
   const uniqueId = crypto.randomBytes(8).toString('hex').slice(0, 16);
   const newRoom = await prisma.room.create({
@@ -32,11 +34,17 @@ export const createGroup = async (
     },
   });
 
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = password ? await bcrypt.hash(password, salt) : undefined;
+
   const newGroup = await prisma.group.create({
     data: {
       name: groupName,
       description: description,
       id: newRoom.id,
+      havePassword: !!password,
+      password: hashedPassword,
+      salt: password ? salt : undefined,
     },
   });
 
@@ -60,6 +68,7 @@ export const createGroup = async (
     lastSentAt: undefined,
     createAt: newRoom.createdAt,
     type: 'group',
+    participantCount: mapped.length,
     participants: mapped,
     unread: 0,
     messageCount: 0,
@@ -83,6 +92,50 @@ export const updateGroup = async (groupId: string, groupName: string, descriptio
   });
 };
 
+export const updateGroupPassword = async (groupId: string, password: string | null) => {
+  if (password === null) {
+    // Remove password
+    await prisma.group.update({
+      where: { id: groupId },
+      data: {
+        password: undefined,
+        salt: undefined,
+        havePassword: false,
+      },
+    });
+  } else {
+    // Update with new hashed password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    await prisma.group.update({
+      where: { id: groupId },
+      data: {
+        password: hashedPassword,
+        salt: salt,
+        havePassword: true,
+      },
+    });
+  }
+};
+
+export const checkPassword = async (groupId: string, inputPassword: string): Promise<boolean> => {
+  const group = await prisma.group.findUnique({
+    where: { id: groupId },
+  });
+
+  if (!group) {
+    return false;
+  }
+
+  if (!group.havePassword || !group.password) {
+    return true;
+  }
+
+  const isMatch = await bcrypt.compare(inputPassword, group.password);
+  return isMatch;
+};
+
 // This function deletes a group chat and all its associated data.
 export const deleteGroup = async (groupId: string): Promise<void> => {
   await prisma.roomParticipant.deleteMany({
@@ -101,9 +154,46 @@ export const deleteGroup = async (groupId: string): Promise<void> => {
 };
 
 // Retrieves the details of a specific group chat by its ID.
+export const getAllGroup = async (): Promise<ChatInfoDto[]> => {
+  const groups = await prisma.group.findMany({
+    include: {
+      room: {
+        select: {
+          _count: {
+            select: {
+              participants: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const mapped: ChatInfoDto[] = groups.map((group) => ({
+    id: group.id,
+    name: group.name,
+    type: 'group',
+    participantCount: group.room._count.participants,
+    havePassword: group.havePassword,
+  }));
+
+  return mapped;
+};
+// Retrieves the details of a specific group chat by its ID.
 export const getGroup = async (groupId: string): Promise<ChatInfoDto | null> => {
   const group = await prisma.group.findUnique({
     where: { id: groupId },
+    include: {
+      room: {
+        select: {
+          _count: {
+            select: {
+              participants: true,
+            },
+          },
+        },
+      },
+    },
   });
 
   if (!group) {
@@ -114,6 +204,7 @@ export const getGroup = async (groupId: string): Promise<ChatInfoDto | null> => 
     id: group.id,
     name: group.name,
     type: 'group',
+    participantCount: group.room._count.participants,
   };
 };
 
@@ -197,6 +288,7 @@ export const joinGroup = async (userId: number, groupId: string): Promise<[Parti
     participants: mapped,
     unread: unreadMessageCount,
     messageCount,
+    participantCount: mapped.length,
   };
 
   return [

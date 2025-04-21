@@ -14,6 +14,7 @@ export interface ChatInfoDto {
   id: string;
   type: 'group' | 'direct';
   name: string | undefined;
+  participantCount: number;
 }
 
 // UserChatDetailDto interface extends ChatInfoDto and adds additional properties related to user chat details
