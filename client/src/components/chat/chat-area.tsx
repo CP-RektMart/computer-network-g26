@@ -1,15 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
   Edit,
+  Lock,
   LogOut,
   Menu,
   MoreVertical,
   Send,
   SmilePlus,
   Trash2,
-  Lock
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { toast } from 'react-toastify'
 import { emojiCategories, flatEmojiList } from './chat-emoji'
 import type { Message } from '@/lib/types'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -36,7 +37,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { toast } from 'react-toastify'
 
 interface ChatAreaProps {
   setIsMobileMenuOpen: (open: boolean) => void
@@ -57,28 +57,30 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
     createDirect,
     editMessage,
     unsendMessage,
-    updateGroupPassword
+    updateGroupPassword,
   } = useChat()
   const [messageText, setMessageText] = useState('')
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const isNearBottomRef = useRef(true)
-  const [newPassword, setNewPassword] = useState('');
-
+  const [newPassword, setNewPassword] = useState('')
 
   const handleSaveNewPassword = () => {
     if (!selectedChat?.id) {
-      console.error("No group selected");
-      return;
+      console.error('No group selected')
+      return
     }
 
-    const passwordToSend = newPassword?.trim() === "" ? undefined : newPassword.trim();
-    updateGroupPassword(selectedChat.id, passwordToSend);
+    const passwordToSend =
+      newPassword.trim() === '' ? undefined : newPassword.trim()
+    updateGroupPassword(selectedChat.id, passwordToSend)
     toast.success(
-      passwordToSend ? "Password updated successfully!" : "Password removed successfully!"
-    );
-  };
+      passwordToSend
+        ? 'Password updated successfully!'
+        : 'Password removed successfully!',
+    )
+  }
 
   const fetchMessageLimit = 20
 
@@ -235,8 +237,8 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                 p.id !== user?.id &&
                 onlineUserIds.some((onlineUser) => onlineUser.id === p.id),
             ) && (
-                <div className="absolute inset-0 rounded-full border-2 border-green-500" />
-              )}
+              <div className="absolute inset-0 rounded-full border-2 border-green-500" />
+            )}
           </Avatar>
         </div>
 
@@ -304,8 +306,8 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                                     (onlineUser) =>
                                       onlineUser.id === participant.id,
                                   ) && (
-                                      <div className="absolute inset-0 rounded-full border-2 border-green-500" />
-                                    )}
+                                    <div className="absolute inset-0 rounded-full border-2 border-green-500" />
+                                  )}
                                 </div>
                                 {participant.username.length > 10
                                   ? `${participant.username.slice(0, 10)}...`
@@ -327,9 +329,9 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                                   className={cn(
                                     'ml-2 text-xs',
                                     participant.role === 'admin' &&
-                                    'bg-red-100 text-red-700',
+                                      'bg-red-100 text-red-700',
                                     participant.role === 'member' &&
-                                    'bg-blue-100 text-blue-700',
+                                      'bg-blue-100 text-blue-700',
                                   )}
                                 >
                                   {participant.role}
@@ -380,9 +382,7 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
 
                     {/* Dialog Actions (Cancel/Save) */}
                     <div className="flex justify-end gap-4">
-                      <DialogClose
-                        className="bg-gray-300 text-white px-4 py-2 rounded cursor-pointer hover:bg-gray-400"
-                      >
+                      <DialogClose className="bg-gray-300 text-white px-4 py-2 rounded cursor-pointer hover:bg-gray-400">
                         Cancel
                       </DialogClose>
                       <DialogClose
@@ -458,21 +458,23 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                 >
                   {message.senderType === 'user' ? (
                     <div
-                      className={`max-w-[70%] ${isCurrentUser
-                        ? 'rounded-lg bg-primary text-white'
-                        : 'rounded-lg bg-gray-100 text-gray-900'
-                        } overflow-hidden`}
+                      className={`max-w-[70%] ${
+                        isCurrentUser
+                          ? 'rounded-lg bg-primary text-white'
+                          : 'rounded-lg bg-gray-100 text-gray-900'
+                      } overflow-hidden`}
                     >
                       {!isCurrentUser && selectedChat.isGroup && (
                         <div className="border-b border-gray-200 px-4 py-2 text-xs font-medium">
                           <div className="flex items-center gap-2">
                             <div
-                              className={`h-2 w-2 rounded-full ${onlineUserIds.some(
-                                (onlineUser) => onlineUser.id === sender?.id,
-                              )
-                                ? 'bg-green-500'
-                                : 'bg-gray-300'
-                                }`}
+                              className={`h-2 w-2 rounded-full ${
+                                onlineUserIds.some(
+                                  (onlineUser) => onlineUser.id === sender?.id,
+                                )
+                                  ? 'bg-green-500'
+                                  : 'bg-gray-300'
+                              }`}
                             />
                             {sender?.username || 'Unknown user'}
                           </div>
@@ -624,10 +626,11 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
               <div className="max-w-[420px] overflow-x-auto whitespace-nowrap pb-2 flex space-x-2">
                 <Button
                   onClick={() => setSelectedCategory('all')}
-                  className={`shrink-0 ${selectedCategory === 'all'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-200 text-gray-600 hover:text-black'
-                    }`}
+                  className={`shrink-0 ${
+                    selectedCategory === 'all'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-200 text-gray-600 hover:text-black'
+                  }`}
                 >
                   All
                 </Button>
@@ -638,10 +641,11 @@ export default function ChatArea({ setIsMobileMenuOpen }: ChatAreaProps) {
                     onClick={() =>
                       setSelectedCategory(category as EmojiCategory)
                     }
-                    className={`shrink-0 ${selectedCategory === category
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-200 text-gray-600 hover:text-black'
-                      }`}
+                    className={`shrink-0 ${
+                      selectedCategory === category
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-200 text-gray-600 hover:text-black'
+                    }`}
                   >
                     {category.charAt(0).toUpperCase() + category.slice(1)}
                   </Button>

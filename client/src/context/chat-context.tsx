@@ -6,11 +6,11 @@ import React, {
   useState,
 } from 'react'
 import { io } from 'socket.io-client'
+import { toast } from 'react-toastify'
 import { getToken, useUser } from './user-context'
 import type { Socket } from 'socket.io-client'
 import type { Chat, Message, Participant, User } from '@/lib/types'
 import { useChatHelper, useChatMessagesHelper } from '@/lib/helpers'
-import { toast } from 'react-toastify'
 
 interface ChatContextType {
   socketRef: React.RefObject<Socket | null>
@@ -26,7 +26,11 @@ interface ChatContextType {
   joinGroup: (groupId: string, password: string | undefined) => Promise<void>
   leaveGroup: (groupId: string) => void
   createDirect: (receiverId: number) => Promise<void>
-  createGroup: (name: string, password: string | undefined, participants: User[]) => Promise<void>
+  createGroup: (
+    name: string,
+    password: string | undefined,
+    participants: User[],
+  ) => Promise<void>
   chatAreaScrollDown: boolean
   setChatAreaScrollDown: React.Dispatch<React.SetStateAction<boolean>>
   fetchMessageToChat: (chatId: string, limit?: number, before?: string) => void
@@ -428,31 +432,35 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     })
   }
 
-  const updateGroupPassword = async (groupId: string, password: string | undefined) => {
+  const updateGroupPassword = async (
+    groupId: string,
+    password: string | undefined,
+  ) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/groups/${groupId}/password`
-        , {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/groups/${groupId}/password`,
+        {
           method: 'PATCH',
           headers: {
             Authorization: `Bearer ${getToken()}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ password }),
-        });
+        },
+      )
 
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Failed to update password:", errorData.message);
-        return;
+        const errorData = await response.json()
+        console.error('Failed to update password:', errorData.message)
+        return
       }
 
-      const data = await response.json();
-      console.log("Password updated successfully:", data);
-
+      const data = await response.json()
+      console.log('Password updated successfully:', data)
     } catch (error) {
-      console.error("An error occurred while updating the password:", error);
+      console.error('An error occurred while updating the password:', error)
     }
-  };
+  }
 
   // Select a chat
   const selectChat = async (chat: Chat) => {
@@ -579,13 +587,17 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       addOrUpdateChat(newChat)
       initChatMessages(newChat.id, [])
       setWaitingSelectedChat(newChat.id)
-      toast.success('Successfully created the direct!');
+      toast.success('Successfully created the direct!')
     } catch (error) {
       console.error('Error creating direct chat:', error)
     }
   }
 
-  const createGroup = async (name: string, password: string | undefined, participants: User[]) => {
+  const createGroup = async (
+    name: string,
+    password: string | undefined,
+    participants: User[],
+  ) => {
     try {
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/api/groups`,
@@ -598,7 +610,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           body: JSON.stringify({
             groupName: name,
             participantIds: participants.map((p) => p.id),
-            password
+            password,
           }),
         },
       )
@@ -631,7 +643,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       addOrUpdateChat(newChat)
       initChatMessages(newChat.id, [])
       setWaitingSelectedChat(newChat.id)
-      toast.success('Successfully created the group!');
+      toast.success('Successfully created the group!')
     } catch (error) {
       console.error('Error creating group:', error)
     }
@@ -648,13 +660,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ password }),
-        }
-      );
+        },
+      )
 
       if (!response.ok) {
-        const errorData = await response.json();
-        toast.error(errorData.message || 'Failed to join group');
-        return;
+        const errorData = await response.json()
+        toast.error(errorData.message || 'Failed to join group')
+        return
       }
 
       const chat = await response.json()
@@ -680,7 +692,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       addOrUpdateChat(mappedChat)
       initChatMessages(mappedChat.id, [])
       setWaitingSelectedChat(mappedChat.id)
-      toast.success('Successfully joined the group!');
+      toast.success('Successfully joined the group!')
     } catch (error) {
       console.error('Error join group:', error)
     }
@@ -707,7 +719,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
       setSelectedChat(null)
       removeChat(groupId)
-      toast.success('leaved the group!');
+      toast.success('leaved the group!')
     } catch (error) {
       console.error('Error leave group:', error)
     }

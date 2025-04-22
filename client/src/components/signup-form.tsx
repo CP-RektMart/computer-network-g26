@@ -66,8 +66,8 @@ export function SignupForm({
     setError(null)
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
+      setError('Password must be at least 6 characters')
+      return
     }
     // Validate passwords match
     if (password !== confirmPassword) {
