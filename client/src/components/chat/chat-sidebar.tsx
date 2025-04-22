@@ -282,13 +282,13 @@ export default function ChatSidebar({
                     <Plus className="h-4 w-4" />
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="w-[95vw] max-w-md sm:max-w-lg md:max-w-xl p-4 sm:p-6">
                   <DialogHeader>
                     <DialogTitle>Contacts</DialogTitle>
                   </DialogHeader>
                   <Tabs
                     defaultValue="contacts"
-                    className="space-y-4 flex justify-center"
+                    className="space-y-4 flex flex-col"
                   >
                     {/* Tab Buttons */}
                     <TabsList className="w-full flex justify-start space-x-2">
@@ -297,8 +297,8 @@ export default function ChatSidebar({
                     </TabsList>
 
                     <div className="flex justify-center">
-                      <TabsContent value="contacts">
-                        <div className="h-[400px] w-[480px] overflow-y-auto flex flex-col gap-2 rounded-md border p-2">
+                      <TabsContent value="contacts" className="w-full">
+                        <div className="h-[300px] sm:h-[350px] md:h-[400px] w-full overflow-y-auto flex flex-col gap-2 rounded-md border p-2">
                           {/* Search Input for Contacts */}
                           <input
                             type="text"
@@ -307,15 +307,15 @@ export default function ChatSidebar({
                             onChange={(e) =>
                               setContactSearchQuery(e.target.value)
                             }
-                            className="p-2 border rounded-md mb-4"
+                            className="p-2 border rounded-md mb-4 w-full"
                           />
 
-                          <div className="flex-col flex-row space-x-2">
+                          <div className="flex flex-col space-y-2">
                             {/* Render current user */}
                             {currentUser && (
                               <div
                                 key={currentUser.id}
-                                className="w-[450px] flex-shrink-0 rounded-md p-2 hover:bg-gray-100 cursor-pointer"
+                                className="w-full flex-shrink-0 rounded-md p-2 hover:bg-gray-100 cursor-pointer"
                                 onClick={() => {
                                   createDirect(currentUser.id)
                                   setIsMobileMenuOpen(false)
@@ -331,14 +331,14 @@ export default function ChatSidebar({
                                     </Avatar>
                                     <div className="absolute inset-0 rounded-full border-2 border-green-500" />
                                   </div>
-                                  <div>
-                                    <p className="text-sm font-medium">
+                                  <div className="overflow-hidden">
+                                    <p className="text-sm font-medium truncate">
                                       {currentUser.username}{' '}
                                       <span className="text-xs text-gray-400">
                                         (You)
                                       </span>
                                     </p>
-                                    <p className="text-xs text-gray-500">
+                                    <p className="text-xs text-gray-500 truncate">
                                       {currentUser.email}
                                     </p>
                                   </div>
@@ -370,7 +370,7 @@ export default function ChatSidebar({
                               .map((user) => (
                                 <div
                                   key={user.id}
-                                  className="w-[450px] flex-shrink-0 rounded-md p-2 hover:bg-gray-100 cursor-pointer"
+                                  className="w-full flex-shrink-0 rounded-md p-2 hover:bg-gray-100 cursor-pointer"
                                   onClick={() => {
                                     createDirect(user.id)
                                     setIsMobileMenuOpen(false)
@@ -392,11 +392,11 @@ export default function ChatSidebar({
                                         <div className="absolute inset-0 rounded-full border-2 border-green-500" />
                                       )}
                                     </div>
-                                    <div>
-                                      <p className="text-sm font-medium">
+                                    <div className="overflow-hidden">
+                                      <p className="text-sm font-medium truncate">
                                         {user.username}
                                       </p>
-                                      <p className="text-xs text-gray-500">
+                                      <p className="text-xs text-gray-500 truncate">
                                         {user.email}
                                       </p>
                                     </div>
@@ -408,13 +408,13 @@ export default function ChatSidebar({
                       </TabsContent>
 
                       {/* Groups Tab */}
-                      <TabsContent value="groups">
-                        <div className="h-[400px] w-[480px] overflow-y-auto flex flex-col gap-2 rounded-md border p-2">
+                      <TabsContent value="groups" className="w-full">
+                        <div className="h-[300px] sm:h-[350px] md:h-[400px] w-full overflow-y-auto flex flex-col gap-2 rounded-md border p-2">
                           {/* Search Input for Groups */}
                           <input
                             type="text"
                             placeholder="Search Groups..."
-                            className="p-2 border rounded-md mb-4"
+                            className="p-2 border rounded-md mb-4 w-full"
                             value={groupSearchQuery}
                             onChange={(e) =>
                               setGroupSearchQuery(e.target.value)
@@ -431,7 +431,7 @@ export default function ChatSidebar({
                             .map((group) => (
                               <div
                                 key={group.id}
-                                className="w-[450px] flex-shrink-0 rounded-md p-2 hover:bg-gray-100 cursor-pointer"
+                                className="w-full flex-shrink-0 rounded-md p-2 hover:bg-gray-100 cursor-pointer"
                                 onClick={() => {
                                   const isAlreadyJoined = chats.find(
                                     (c) => c.id === group.id,
@@ -453,13 +453,13 @@ export default function ChatSidebar({
                                 }}
                               >
                                 <div className="flex items-center justify-between space-x-3">
-                                  <div className="flex items-center space-x-3">
-                                    <Avatar className="h-8 w-8">
+                                  <div className="flex items-center space-x-3 overflow-hidden">
+                                    <Avatar className="h-8 w-8 flex-shrink-0">
                                       <AvatarFallback>
                                         {group.name.charAt(0)}
                                       </AvatarFallback>
                                     </Avatar>
-                                    <div>
+                                    <div className="overflow-hidden">
                                       <p className="text-sm font-medium truncate">
                                         {group.name}
                                       </p>
@@ -468,7 +468,7 @@ export default function ChatSidebar({
                                       </p>
                                     </div>
                                   </div>
-                                  <div className="flex items-center space-x-2">
+                                  <div className="flex items-center space-x-2 flex-shrink-0">
                                     <p className="flex items-center">
                                       {chats.find((c) => c.id === group.id) ? (
                                         <span className="text-green-500 text-sm">
